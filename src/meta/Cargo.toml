@@ -19,7 +19,6 @@ arc-swap = "1"
 assert_matches = "1"
 async-trait = "0.1"
 aws-config = { workspace = true }
-aws-sdk-ec2 = { workspace = true }
 bytes = { version = "1", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
 crepe = "0.1"
@@ -42,6 +41,8 @@ prometheus = "0.13"
 prometheus-http-query = "0.6"
 prost = "0.11"
 rand = "0.8"
+reqsign = {version="0.9.4", default-features = false,features = ["reqwest_request","services-aws"]}
+quick-xml = { version = "0.28", features = ["serialize"] }
 reqwest = "0.11"
 risingwave_backup = { path = "../storage/backup" }
 risingwave_common = { path = "../common" }

@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use aws_config::retry::RetryConfig;
 use aws_sdk_ec2::model::{Filter, State, VpcEndpointType};
 use itertools::Itertools;
+use reqsign::{AwsConfig, AwsLoader, AwsV4Signer};
+use reqwest::{Client, Request, Response};
 use risingwave_pb::catalog::connection::private_link_service::PrivateLinkProvider;
 use risingwave_pb::catalog::connection::PrivateLinkService;
 
@@ -25,7 +28,8 @@ use crate::{MetaError, MetaResult};
 
 #[derive(Clone)]
 pub struct AwsEc2Client {
-    client: aws_sdk_ec2::Client,
+    signer: Arc<AwsV4Signer>,
+    loader: Arc<AwsLoader>,
     /// `vpc_id`: The VPC of the running RisingWave instance
     vpc_id: String,
     security_group_id: String,
@@ -33,14 +37,18 @@ pub struct AwsEc2Client {
 
 impl AwsEc2Client {
     pub async fn new(vpc_id: &str, security_group_id: &str) -> Self {
-        let sdk_config = aws_config::from_env()
-            .retry_config(RetryConfig::standard().with_max_attempts(4))
-            .load()
-            .await;
-        let client = aws_sdk_ec2::Client::new(&sdk_config);
+        let config = AwsConfig::default().from_env();
+        let region = config
+            .region
+            .as_deref()
+            .expect("aws region unknown")
+            .to_string();
+        let loader = AwsLoader::new(Client::new(), config);
+        let signer = AwsV4Signer::new("ec2", &region);
 
         Self {
-            client,
+            signer: Arc::new(signer),
+            loader: Arc::new(loader),
             vpc_id: vpc_id.to_string(),
             security_group_id: security_group_id.to_string(),
         }
@@ -101,18 +109,17 @@ impl AwsEc2Client {
     }
 
     pub async fn is_vpc_endpoint_ready(&self, vpc_endpoint_id: &str) -> MetaResult<bool> {
-        let mut is_ready = false;
-        let filter = Filter::builder()
-            .name("vpc-endpoint-id")
-            .values(vpc_endpoint_id)
-            .build();
-        let output = self
-            .client
-            .describe_vpc_endpoints()
-            .set_filters(Some(vec![filter]))
-            .send()
-            .await?;
+        let mut req = reqwest::Request::new(
+            reqwest::Method::POST,
+            reqwest::Url::parse(&format!(
+                "https://ec2.amazonaws.com?Action=DescribeVpcEndpoints&Filter.1.VpcEndpointId={}",
+                vpc_endpoint_id
+            ))
+            .unwrap(),
+        );
+        let resp = self.sign_and_send(req).await?;
 
+        let mut is_ready = false;
         match output.vpc_endpoints {
             Some(endpoints) => {
                 let endpoint = endpoints.into_iter().exactly_one().map_err(|_| {
@@ -141,13 +148,17 @@ impl AwsEc2Client {
     }
 
     async fn get_endpoint_service_az_names(&self, service_name: &str) -> MetaResult<Vec<String>> {
+        let req = reqwest::Request::new(
+            reqwest::Method::POST,
+            reqwest::Url::parse(&format!(
+                "https://ec2.amazonaws.com?Action=DescribeVpcEndpointServices&ServiceName.1={}",
+                service_name
+            ))
+            .unwrap(),
+        );
+        let resp = self.sign_and_send(req).await?;
+
         let mut service_azs = Vec::new();
-        let output = self
-            .client
-            .describe_vpc_endpoint_services()
-            .set_service_names(Some(vec![service_name.to_string()]))
-            .send()
-            .await?;
 
         match output.service_details {
             Some(details) => {
@@ -236,5 +247,22 @@ impl AwsEc2Client {
             endpoint.vpc_endpoint_id().unwrap_or_default().to_string(),
             dns_names,
         ))
+    }
+
+    async fn sign_and_send(&self, mut req: Request) -> MetaResult<Response> {
+        let cred = self
+            .loader
+            .load()
+            .await
+            .expect("load request must success")
+            .unwrap();
+        self.signer
+            .sign(&mut req, &cred)
+            .expect("sign request must success");
+
+        let client = Client::new();
+        let resp = client.execute(req).await.expect("request must succeed");
+
+        Ok(resp)
     }
 }
