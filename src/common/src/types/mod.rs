@@ -590,6 +590,102 @@ for_all_scalar_variants! { scalar_impl_partial_ord }
 pub type Datum = Option<ScalarImpl>;
 pub type DatumRef<'a> = Option<ScalarRefImpl<'a>>;
 
+#[derive(Debug, Clone, PartialEq, Eq, EstimateSize)]
+pub enum DatumV2 {
+    None,
+    Some(ScalarImpl),
+}
+
+impl DatumV2 {
+    pub fn into_option(self) -> Option<ScalarImpl> {
+        match self {
+            Self::None => None,
+            Self::Some(s) => Some(s),
+        }
+    }
+
+    pub fn as_option(&self) -> Option<&ScalarImpl> {
+        match self {
+            Self::None => None,
+            Self::Some(s) => Some(s),
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn as_ref(&self) -> DatumRefV2<'_> {
+        match self {
+            Self::None => DatumRefV2::None,
+            Self::Some(s) => DatumRefV2::Some(s.as_scalar_ref_impl()),
+        }
+    }
+}
+
+impl From<Option<ScalarImpl>> for DatumV2 {
+    fn from(s: Option<ScalarImpl>) -> Self {
+        match s {
+            None => Self::None,
+            Some(s) => Self::Some(s),
+        }
+    }
+}
+
+impl From<ScalarImpl> for DatumV2 {
+    fn from(s: ScalarImpl) -> Self {
+        Self::Some(s)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DatumRefV2<'a> {
+    None,
+    Some(ScalarRefImpl<'a>),
+}
+
+impl<'a> DatumRefV2<'a> {
+    pub fn into_option(self) -> Option<ScalarRefImpl<'a>> {
+        match self {
+            Self::None => None,
+            Self::Some(s) => Some(s),
+        }
+    }
+
+    pub fn as_option(&self) -> Option<&ScalarRefImpl<'a>> {
+        match self {
+            Self::None => None,
+            Self::Some(s) => Some(s),
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn to_owned(self) -> DatumV2 {
+        match self {
+            Self::None => DatumV2::None,
+            Self::Some(s) => DatumV2::Some(s.into_scalar_impl()),
+        }
+    }
+}
+
+impl<'a> From<Option<ScalarRefImpl<'a>>> for DatumRefV2<'a> {
+    fn from(s: Option<ScalarRefImpl<'a>>) -> Self {
+        match s {
+            None => Self::None,
+            Some(s) => Self::Some(s),
+        }
+    }
+}
+
+impl<'a> From<ScalarRefImpl<'a>> for DatumRefV2<'a> {
+    fn from(s: ScalarRefImpl<'a>) -> Self {
+        Self::Some(s)
+    }
+}
+
 /// This trait is to implement `to_owned_datum` for `Option<ScalarImpl>`
 pub trait ToOwnedDatum {
     /// Convert the datum to an owned [`Datum`].
@@ -603,7 +699,7 @@ impl ToOwnedDatum for DatumRef<'_> {
     }
 }
 
-pub trait ToDatumRef: PartialEq + Eq + std::fmt::Debug {
+pub trait ToDatumRef: PartialEq + Eq + Debug {
     /// Convert the datum to [`DatumRef`].
     fn to_datum_ref(&self) -> DatumRef<'_>;
 }
@@ -675,6 +771,22 @@ macro_rules! impl_convert {
                 }
             }
 
+            impl From<$scalar> for DatumV2 {
+                fn from(val: $scalar) -> Self {
+                    let val: ScalarImpl = val.into();
+                    val.into()
+                }
+            }
+
+            impl From<Option<$scalar>> for DatumV2 {
+                fn from(val: Option<$scalar>) -> Self {
+                    match val {
+                        None => Self::None,
+                        Some(scalar) => Self::Some(scalar.into()),
+                    }
+                }
+            }
+
             impl <'scalar> From<$scalar_ref> for ScalarRefImpl<'scalar> {
                 fn from(val: $scalar_ref) -> Self {
                     ScalarRefImpl::$variant_name(val)
@@ -692,6 +804,22 @@ macro_rules! impl_convert {
                 }
             }
 
+            impl <'scalar> From<$scalar_ref> for DatumRefV2<'scalar> {
+                fn from(val: $scalar_ref) -> Self {
+                    let val: ScalarRefImpl<'_> = val.into();
+                    val.into()
+                }
+            }
+
+            impl <'scalar> From<Option<$scalar_ref>> for DatumRefV2<'scalar> {
+                fn from(val: Option<$scalar_ref>) -> Self {
+                    match val {
+                        None => Self::None,
+                        Some(scalar_ref) => Self::Some(scalar_ref.into()),
+                    }
+                }
+            }
+
             paste! {
                 impl ScalarImpl {
                     pub fn [<as_ $suffix_name>](&self) -> &$scalar {
@@ -704,7 +832,7 @@ macro_rules! impl_convert {
                     pub fn [<into_ $suffix_name>](self) -> $scalar {
                         match self {
                             Self::$variant_name(scalar) => scalar,
-                            other_scalar =>  panic!("cannot convert ScalarImpl::{} to concrete type {}", other_scalar.get_ident(), stringify!($variant_name))
+                            other_scalar => panic!("cannot convert ScalarImpl::{} to concrete type {}", other_scalar.get_ident(), stringify!($variant_name))
                         }
                     }
                 }
