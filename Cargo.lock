@@ -404,13 +404,13 @@ checksum = "ecc7ab41815b3c653ccd2978ec3255c81349336702dfdf62ee6f7069b12a3aae"
 
 [[package]]
 name = "async-trait"
-version = "0.1.66"
+version = "0.1.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b84f9ebcc6c1f5b8cb160f6990096a5c127f423fcb6e1ccc46c370cbdfb75dfc"
+checksum = "b9ccdd8f2a161be9bd5c023df56f1b2a0bd1d83872ae53b71a84a12c9bf6e842"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.15",
 ]
 
 [[package]]
@@ -2095,26 +2095,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
-dependencies = [
- "dirs-sys",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
-dependencies = [
- "libc",
- "redox_users",
- "winapi",
-]
-
-[[package]]
 name = "dlv-list"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2838,6 +2818,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hdfs-sys"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73dcfda0dbca0569e98b8bfb87028d83d2f07705587bac1fddea7dc9ee1eca13"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "hdrhistogram"
 version = "7.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2849,6 +2838,21 @@ dependencies = [
  "flate2",
  "nom",
  "num-traits",
+]
+
+[[package]]
+name = "hdrs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70a8d6dab41a27fd3825810f6413f16f15733c84114504e41955516e4156676c"
+dependencies = [
+ "async-lock",
+ "blocking",
+ "errno",
+ "futures",
+ "hdfs-sys",
+ "libc",
+ "log",
 ]
 
 [[package]]
@@ -4230,9 +4234,8 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "opendal"
-version = "0.30.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecd1bedb1311f05ef3a0cf6dbeb58ee0e01e75735d74003343c802d623b4c6d2"
+version = "0.33.0"
+source = "git+https://github.com/apache/incubator-opendal.git?rev=8fc4f89#8fc4f895ee84324746daaf6a8bc5483b92f04074"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -4240,8 +4243,10 @@ dependencies = [
  "backon",
  "base64 0.21.0",
  "bytes",
+ "chrono",
  "flagset",
  "futures",
+ "hdrs",
  "http",
  "hyper",
  "log",
@@ -4255,9 +4260,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "time 0.3.17",
  "tokio",
- "ureq",
  "uuid",
 ]
 
@@ -5493,17 +5496,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redox_users"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
-dependencies = [
- "getrandom 0.2.9",
- "redox_syscall",
- "thiserror",
-]
-
-[[package]]
 name = "ref_slice"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5546,18 +5538,19 @@ dependencies = [
 
 [[package]]
 name = "reqsign"
-version = "0.8.5"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7db6d8d2cd7fa61403d14de670f98d7cedac38143681c124943d7bb69258b3a"
+checksum = "6f753b768a9d691395e7db3dc74452cc39a5da55293c3fa2241e2aeaf9d94028"
 dependencies = [
  "anyhow",
- "backon",
+ "async-trait",
  "base64 0.21.0",
  "bytes",
- "dirs",
+ "chrono",
  "form_urlencoded",
  "hex",
  "hmac",
+ "home",
  "http",
  "jsonwebtoken",
  "log",
@@ -5565,14 +5558,14 @@ dependencies = [
  "percent-encoding",
  "quick-xml 0.28.1",
  "rand 0.8.5",
+ "reqwest",
  "rsa",
  "rust-ini",
  "serde",
  "serde_json",
  "sha1",
  "sha2",
- "time 0.3.17",
- "ureq",
+ "tokio",
 ]
 
 [[package]]
@@ -8449,22 +8442,6 @@ name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
-
-[[package]]
-name = "ureq"
-version = "2.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "338b31dd1314f68f3aabf3ed57ab922df95ffcd902476ca7ba3c4ce7b908c46d"
-dependencies = [
- "base64 0.13.1",
- "log",
- "once_cell",
- "rustls",
- "rustls-native-certs",
- "url",
- "webpki",
- "webpki-roots",
-]
 
 [[package]]
 name = "url"

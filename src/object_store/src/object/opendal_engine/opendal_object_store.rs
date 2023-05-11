@@ -127,7 +127,7 @@ impl ObjectStore for OpendalObjectStore {
         let opendal_metadata = self.op.stat(path).await?;
         let key = path.to_string();
         let last_modified = match opendal_metadata.last_modified() {
-            Some(t) => t.unix_timestamp() as f64,
+            Some(t) => t.timestamp() as f64,
             None => 0_f64,
         };
 
@@ -165,7 +165,7 @@ impl ObjectStore for OpendalObjectStore {
                 .await?;
 
             let last_modified = match om.last_modified() {
-                Some(t) => t.unix_timestamp() as f64,
+                Some(t) => t.timestamp() as f64,
                 None => 0_f64,
             };
 
