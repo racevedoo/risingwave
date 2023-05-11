@@ -327,7 +327,7 @@ macro_rules! for_all_variants {
             { Serial, serial, SerialArray, SerialArrayBuilder },
             { Struct, struct, StructArray, StructArrayBuilder },
             { List, list, ListArray, ListArrayBuilder },
-            { Bytea, bytea, BytesArray, BytesArrayBuilder}
+            { Bytea, bytea, BytesArray, BytesArrayBuilder }
         }
     };
 }

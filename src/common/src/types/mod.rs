@@ -449,7 +449,6 @@ pub trait Scalar:
     + Sync
     + 'static
     + Clone
-    + std::fmt::Debug
     + TryFrom<ScalarImpl, Error = ArrayError>
     + Into<ScalarImpl>
 {
