@@ -21,7 +21,6 @@
 //! are encoded from both `t.b` and `t.c`. If `t.b="abc"` and `t.c=1`, the hashkey may be
 //! encoded in certain format of `("abc", 1)`.
 
-use std::convert::TryInto;
 use std::default::Default;
 use std::fmt::Debug;
 use std::hash::{BuildHasher, Hasher};
@@ -37,8 +36,8 @@ use static_assertions::const_assert_eq;
 use crate::array::{ListValue, StructValue};
 use crate::estimate_size::EstimateSize;
 use crate::types::{
-    DataType, Date, Decimal, Int256, Int256Ref, JsonbVal, Scalar, ScalarRef, ScalarRefImpl, Serial,
-    Time, Timestamp, F32, F64,
+    DataType, Date, DatumRef, Decimal, Int256, Int256Ref, JsonbVal, Scalar, ScalarRef,
+    ScalarRefImpl, Serial, Time, Timestamp, F32, F64,
 };
 use crate::util::hash_util::{Crc32FastBuilder, XxHash64Builder};
 use crate::util::sort_util::OrderType;
@@ -306,13 +305,17 @@ macro_rules! impl_value_encoding_hash_key_serde {
                 // TODO: extra boxing to `ScalarRefImpl` and encoding for `NonNull` tag is
                 // unnecessary here. After we resolve them, we can make more types directly delegate
                 // to this implementation.
-                value_encoding::serialize_datum_into(Some(ScalarRefImpl::from(self)), &mut buf);
+                value_encoding::serialize_datum_into(
+                    DatumRef::Some(ScalarRefImpl::from(self)),
+                    &mut buf,
+                );
             }
         }
         impl HashKeyDe for $owned_ty {
             fn deserialize(data_type: &DataType, buf: impl Buf) -> Self {
                 let scalar = value_encoding::deserialize_datum(buf, data_type)
                     .expect("in-memory deserialize should never fail")
+                    .into_option()
                     .expect("datum should never be NULL");
 
                 // TODO: extra unboxing from `ScalarRefImpl` is unnecessary here.
@@ -330,7 +333,7 @@ macro_rules! impl_memcmp_encoding_hash_key_serde {
                 // TODO: extra boxing to `ScalarRefImpl` and encoding for `NonNull` tag is
                 // unnecessary here.
                 memcmp_encoding::serialize_datum(
-                    Some(ScalarRefImpl::from(self)),
+                    DatumRef::Some(ScalarRefImpl::from(self)),
                     OrderType::ascending(),
                     &mut serializer,
                 )
@@ -346,6 +349,7 @@ macro_rules! impl_memcmp_encoding_hash_key_serde {
                     &mut deserializer,
                 )
                 .expect("in-memory deserialize should never fail")
+                .into_option()
                 .expect("datum should never be NULL");
 
                 // TODO: extra unboxing from `ScalarRefImpl` is unnecessary here.
@@ -761,7 +765,7 @@ mod tests {
         let array = array_builders.pop().unwrap().finish();
         let i32_vec = array
             .iter()
-            .map(|opt| opt.map(|s| s.into_int32()))
+            .map(|d| d.into_option().map(|s| s.into_int32()))
             .collect_vec();
         assert_eq!(i32_vec, vec![None, Some(2)]);
     }

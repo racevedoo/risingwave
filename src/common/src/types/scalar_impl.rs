@@ -288,10 +288,7 @@ impl<'a> ScalarRef<'a> for ListRef<'a> {
     type ScalarType = ListValue;
 
     fn to_owned_scalar(&self) -> ListValue {
-        let fields = self
-            .iter_elems_ref()
-            .map(|f| f.map(|s| s.into_scalar_impl()))
-            .collect();
+        let fields = self.iter_elems_ref().map(DatumRef::to_owned).collect();
         ListValue::new(fields)
     }
 

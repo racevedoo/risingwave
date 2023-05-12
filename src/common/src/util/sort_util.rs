@@ -406,8 +406,8 @@ pub fn compare_datum(
     order_type: OrderType,
 ) -> Ordering {
     compare_values(
-        lhs.to_datum_ref().as_ref(),
-        rhs.to_datum_ref().as_ref(),
+        lhs.to_datum_ref().as_option(),
+        rhs.to_datum_ref().as_option(),
         order_type,
     )
 }
@@ -463,12 +463,12 @@ mod tests {
 
     #[test]
     fn test_compare_rows_in_chunk() {
-        let v10 = Some(ScalarImpl::Int32(42));
-        let v11 = Some(ScalarImpl::Utf8("hello".into()));
-        let v12 = Some(ScalarImpl::Float32(4.0.into()));
-        let v20 = Some(ScalarImpl::Int32(42));
-        let v21 = Some(ScalarImpl::Utf8("hell".into()));
-        let v22 = Some(ScalarImpl::Float32(3.0.into()));
+        let v10 = Datum::Some(ScalarImpl::Int32(42i32));
+        let v11 = Datum::Some(ScalarImpl::Utf8("hello".into()));
+        let v12 = Datum::Some(ScalarImpl::Float32(4.0f32.into()));
+        let v20 = Datum::Some(ScalarImpl::Int32(42i32));
+        let v21 = Datum::Some(ScalarImpl::Utf8("hell".into()));
+        let v22 = Datum::Some(ScalarImpl::Float32(3.0f32.into()));
 
         let row1 = OwnedRow::new(vec![v10, v11, v12]);
         let row2 = OwnedRow::new(vec![v20, v21, v22]);
@@ -494,47 +494,47 @@ mod tests {
     #[test]
     fn test_compare_all_types() {
         let row1 = OwnedRow::new(vec![
-            Some(ScalarImpl::Int16(16)),
-            Some(ScalarImpl::Int32(32)),
-            Some(ScalarImpl::Int64(64)),
-            Some(ScalarImpl::Float32(3.2.into())),
-            Some(ScalarImpl::Float64(6.4.into())),
-            Some(ScalarImpl::Utf8("hello".into())),
-            Some(ScalarImpl::Bool(true)),
-            Some(ScalarImpl::Decimal(10.into())),
-            Some(ScalarImpl::Interval(Default::default())),
-            Some(ScalarImpl::Date(Default::default())),
-            Some(ScalarImpl::Timestamp(Default::default())),
-            Some(ScalarImpl::Time(Default::default())),
-            Some(ScalarImpl::Struct(StructValue::new(vec![
-                Some(ScalarImpl::Int32(1)),
-                Some(ScalarImpl::Float32(3.0.into())),
+            Datum::Some(ScalarImpl::Int16(16)),
+            Datum::Some(ScalarImpl::Int32(32)),
+            Datum::Some(ScalarImpl::Int64(64)),
+            Datum::Some(ScalarImpl::Float32(3.2.into())),
+            Datum::Some(ScalarImpl::Float64(6.4.into())),
+            Datum::Some(ScalarImpl::Utf8("hello".into())),
+            Datum::Some(ScalarImpl::Bool(true)),
+            Datum::Some(ScalarImpl::Decimal(10.into())),
+            Datum::Some(ScalarImpl::Interval(Default::default())),
+            Datum::Some(ScalarImpl::Date(Default::default())),
+            Datum::Some(ScalarImpl::Timestamp(Default::default())),
+            Datum::Some(ScalarImpl::Time(Default::default())),
+            Datum::Some(ScalarImpl::Struct(StructValue::new(vec![
+                Datum::Some(ScalarImpl::Int32(1)),
+                Datum::Some(ScalarImpl::Float32(3.0.into())),
             ]))),
-            Some(ScalarImpl::List(ListValue::new(vec![
-                Some(ScalarImpl::Int32(1)),
-                Some(ScalarImpl::Int32(2)),
+            Datum::Some(ScalarImpl::List(ListValue::new(vec![
+                Datum::Some(ScalarImpl::Int32(1)),
+                Datum::Some(ScalarImpl::Int32(2)),
             ]))),
         ]);
         let row2 = OwnedRow::new(vec![
-            Some(ScalarImpl::Int16(16)),
-            Some(ScalarImpl::Int32(32)),
-            Some(ScalarImpl::Int64(64)),
-            Some(ScalarImpl::Float32(3.2.into())),
-            Some(ScalarImpl::Float64(6.4.into())),
-            Some(ScalarImpl::Utf8("hello".into())),
-            Some(ScalarImpl::Bool(true)),
-            Some(ScalarImpl::Decimal(10.into())),
-            Some(ScalarImpl::Interval(Default::default())),
-            Some(ScalarImpl::Date(Default::default())),
-            Some(ScalarImpl::Timestamp(Default::default())),
-            Some(ScalarImpl::Time(Default::default())),
-            Some(ScalarImpl::Struct(StructValue::new(vec![
-                Some(ScalarImpl::Int32(1)),
-                Some(ScalarImpl::Float32(33333.0.into())), // larger than row1
+            Datum::Some(ScalarImpl::Int16(16)),
+            Datum::Some(ScalarImpl::Int32(32)),
+            Datum::Some(ScalarImpl::Int64(64)),
+            Datum::Some(ScalarImpl::Float32(3.2.into())),
+            Datum::Some(ScalarImpl::Float64(6.4.into())),
+            Datum::Some(ScalarImpl::Utf8("hello".into())),
+            Datum::Some(ScalarImpl::Bool(true)),
+            Datum::Some(ScalarImpl::Decimal(10.into())),
+            Datum::Some(ScalarImpl::Interval(Default::default())),
+            Datum::Some(ScalarImpl::Date(Default::default())),
+            Datum::Some(ScalarImpl::Timestamp(Default::default())),
+            Datum::Some(ScalarImpl::Time(Default::default())),
+            Datum::Some(ScalarImpl::Struct(StructValue::new(vec![
+                Datum::Some(ScalarImpl::Int32(1)),
+                Datum::Some(ScalarImpl::Float32(33333.0.into())), // larger than row1
             ]))),
-            Some(ScalarImpl::List(ListValue::new(vec![
-                Some(ScalarImpl::Int32(1)),
-                Some(ScalarImpl::Int32(2)),
+            Datum::Some(ScalarImpl::List(ListValue::new(vec![
+                Datum::Some(ScalarImpl::Int32(1)),
+                Datum::Some(ScalarImpl::Int32(2)),
             ]))),
         ]);
 
@@ -576,52 +576,52 @@ mod tests {
         assert_eq!(
             Ordering::Equal,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                Some(ScalarImpl::from(42)),
+                Datum::Some(42.into()),
+                Datum::Some(42.into()),
                 OrderType::default(),
             )
         );
         assert_eq!(
             Ordering::Equal,
-            compare_datum(None as Datum, None as Datum, OrderType::default(),)
+            compare_datum(Datum::None, Datum::None, OrderType::default(),)
         );
         assert_eq!(
             Ordering::Less,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                Some(ScalarImpl::from(100)),
+                Datum::Some(42.into()),
+                Datum::Some(100.into()),
                 OrderType::ascending(),
             )
         );
         assert_eq!(
             Ordering::Greater,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                None as Datum,
+                Datum::Some(42.into()),
+                Datum::None,
                 OrderType::ascending_nulls_first(),
             )
         );
         assert_eq!(
             Ordering::Less,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                None as Datum,
+                Datum::Some(42.into()),
+                Datum::None,
                 OrderType::ascending_nulls_last(),
             )
         );
         assert_eq!(
             Ordering::Greater,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                None as Datum,
+                Datum::Some(42.into()),
+                Datum::None,
                 OrderType::descending_nulls_first(),
             )
         );
         assert_eq!(
             Ordering::Less,
             compare_datum(
-                Some(ScalarImpl::from(42)),
-                None as Datum,
+                Datum::Some(42.into()),
+                Datum::None,
                 OrderType::descending_nulls_last(),
             )
         );
