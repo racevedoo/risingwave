@@ -89,15 +89,14 @@ impl<R1, R2> Chain<R1, R2> {
 mod tests {
     use super::*;
     use crate::row::OwnedRow;
-    use crate::types::{ScalarImpl, ScalarRefImpl};
 
     #[test]
     fn test_chain_row() {
-        let r1 = || OwnedRow::new((1..=3).map(|i| Some(ScalarImpl::Int64(i))).collect());
-        let r2 = || OwnedRow::new((4..=6).map(|i| Some(ScalarImpl::Int64(i))).collect());
-        let r3 = || OwnedRow::new((7..=9).map(|i| Some(ScalarImpl::Int64(i))).collect());
+        let r1 = || OwnedRow::new((1..=3).map(Into::into).collect());
+        let r2 = || OwnedRow::new((4..=6).map(Into::into).collect());
+        let r3 = || OwnedRow::new((7..=9).map(Into::into).collect());
 
-        let r_expected = OwnedRow::new((1..=9).map(|i| Some(ScalarImpl::Int64(i))).collect());
+        let r_expected = OwnedRow::new((1..=9).map(Into::into).collect());
 
         macro_rules! test {
             ($r:expr) => {
@@ -106,7 +105,7 @@ mod tests {
                 assert!(r.iter().eq(r_expected.iter()));
 
                 for i in 0..9 {
-                    assert_eq!(r.datum_at(i), Some(ScalarRefImpl::Int64(i as i64 + 1)));
+                    assert_eq!(r.datum_at(i), (i as i64 + 1).into());
                 }
             };
         }
