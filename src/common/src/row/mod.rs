@@ -374,6 +374,7 @@ impl<R: Row> Row for Option<R> {
     }
 }
 
+mod asc_row;
 mod chain;
 mod compacted_row;
 mod empty;
@@ -381,6 +382,7 @@ mod once;
 mod owned_row;
 mod project;
 mod repeat_n;
+pub use asc_row::AscRow;
 pub use chain::Chain;
 pub use compacted_row::CompactedRow;
 pub use empty::{empty, Empty};

@@ -19,11 +19,13 @@ use std::sync::Arc;
 use parse_display::Display;
 use risingwave_pb::common::{PbColumnOrder, PbDirection, PbNullsAre, PbOrderType};
 
+use super::iter_util::ZipEqDebug;
 use crate::array::{Array, ArrayImpl, DataChunk};
 use crate::catalog::{FieldDisplay, Schema};
 use crate::error::ErrorCode::InternalError;
 use crate::error::Result;
-use crate::types::ToDatumRef;
+use crate::row::Row;
+use crate::types::{DatumRef, ToDatumRef};
 
 /// Sort direction, ascending/descending.
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug, Display, Default)]
@@ -400,6 +402,10 @@ pub fn compare_rows_in_chunk(
 }
 
 /// Compare two `Datum`s with specified order type.
+///
+/// # Panics
+///
+/// Panics if the data types of `lhs` and `rhs` are not matched.
 pub fn compare_datum(
     lhs: impl ToDatumRef,
     rhs: impl ToDatumRef,
@@ -410,6 +416,68 @@ pub fn compare_datum(
         rhs.to_datum_ref().as_option(),
         order_type,
     )
+}
+
+/// Compare two `Row`s with specified order types.
+///
+/// # Panics
+///
+/// Panics if the length of `lhs`, `rhs` and `order_types` are not equal,
+/// or, if the data types of `lhs` and `rhs` are not matched.
+pub fn compare_rows(lhs: impl Row, rhs: impl Row, order_types: &[OrderType]) -> Ordering {
+    lhs.iter()
+        .zip_eq_debug(rhs.iter())
+        .zip_eq_debug(order_types)
+        .fold(Ordering::Equal, |acc, ((l, r), order_type)| {
+            if acc == Ordering::Equal {
+                compare_datum(l, r, *order_type)
+            } else {
+                acc
+            }
+        })
+}
+
+/// Partial compare two `Datum`s with specified order type.
+pub fn partial_compare_datum(
+    lhs: impl ToDatumRef,
+    rhs: impl ToDatumRef,
+    order_type: OrderType,
+) -> Option<Ordering> {
+    let lhs = lhs.to_datum_ref();
+    let rhs = rhs.to_datum_ref();
+    let ord = match (lhs, rhs, order_type.nulls_are) {
+        (DatumRef::Some(l), DatumRef::Some(r), _) => l.partial_cmp(&r),
+        (DatumRef::None, DatumRef::None, _) => Some(Ordering::Equal),
+        (DatumRef::Some(_), DatumRef::None, NullsAre::Largest) => Some(Ordering::Less),
+        (DatumRef::Some(_), DatumRef::None, NullsAre::Smallest) => Some(Ordering::Greater),
+        (DatumRef::None, DatumRef::Some(_), NullsAre::Largest) => Some(Ordering::Greater),
+        (DatumRef::None, DatumRef::Some(_), NullsAre::Smallest) => Some(Ordering::Less),
+    };
+    ord.map(|o| {
+        if order_type.is_descending() {
+            o.reverse()
+        } else {
+            o
+        }
+    })
+}
+
+/// Partial compare two `Row`s with specified order types.
+pub fn partial_compare_rows(
+    lhs: impl Row,
+    rhs: impl Row,
+    order_types: &[OrderType],
+) -> Option<Ordering> {
+    lhs.iter()
+        .zip_eq_debug(rhs.iter())
+        .zip_eq_debug(order_types)
+        .fold(Some(Ordering::Equal), |acc, ((l, r), order_type)| {
+            if acc == Some(Ordering::Equal) {
+                partial_compare_datum(l, r, *order_type)
+            } else {
+                acc
+            }
+        })
 }
 
 #[cfg(test)]
@@ -571,59 +639,103 @@ mod tests {
         );
     }
 
+    fn common_compare_datum<CmpFn>(compare: CmpFn)
+    where
+        CmpFn: Fn(Datum, Datum, OrderType) -> Ordering,
+    {
+        assert_eq!(
+            Ordering::Equal,
+            compare(42.into(), 42.into(), OrderType::default(),)
+        );
+        assert_eq!(
+            Ordering::Equal,
+            compare(Datum::None, Datum::None, OrderType::default(),)
+        );
+        assert_eq!(
+            Ordering::Less,
+            compare(42.into(), 100.into(), OrderType::ascending(),)
+        );
+        assert_eq!(
+            Ordering::Greater,
+            compare(42.into(), Datum::None, OrderType::ascending_nulls_first(),)
+        );
+        assert_eq!(
+            Ordering::Less,
+            compare(42.into(), Datum::None, OrderType::ascending_nulls_last(),)
+        );
+        assert_eq!(
+            Ordering::Greater,
+            compare(42.into(), Datum::None, OrderType::descending_nulls_first(),)
+        );
+        assert_eq!(
+            Ordering::Less,
+            compare(42.into(), Datum::None, OrderType::descending_nulls_last(),)
+        );
+    }
+
+    fn common_compare_rows<CmpFn>(compare: CmpFn)
+    where
+        CmpFn: Fn(OwnedRow, OwnedRow, &[OrderType]) -> Ordering,
+    {
+        assert_eq!(
+            Ordering::Equal,
+            compare(
+                OwnedRow::new(vec![42.into(), 42.into()]),
+                OwnedRow::new(vec![42.into(), 42.into()]),
+                &[OrderType::ascending(), OrderType::ascending()],
+            )
+        );
+
+        assert_eq!(
+            Ordering::Greater,
+            compare(
+                OwnedRow::new(vec![42.into(), 42.into()]),
+                OwnedRow::new(vec![42.into(), 100.into()]),
+                &[OrderType::ascending(), OrderType::descending()],
+            )
+        );
+
+        assert_eq!(
+            Ordering::Less,
+            compare(
+                OwnedRow::new(vec![42.into(), 42.into()]),
+                OwnedRow::new(vec![42.into(), 100.into()]),
+                &[OrderType::ascending(), OrderType::ascending()],
+            )
+        );
+    }
+
     #[test]
     fn test_compare_datum() {
+        common_compare_datum(compare_datum);
+    }
+
+    #[test]
+    fn test_compare_rows() {
+        common_compare_rows(compare_rows);
+    }
+
+    #[test]
+    fn test_partial_compare_datum() {
+        common_compare_datum(|lhs, rhs, order| partial_compare_datum(lhs, rhs, order).unwrap());
+
         assert_eq!(
-            Ordering::Equal,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::Some(42.into()),
-                OrderType::default(),
+            None,
+            partial_compare_datum(Datum::from(42), Datum::from("abc"), OrderType::default())
+        )
+    }
+
+    #[test]
+    fn test_partial_compare_rows() {
+        common_compare_rows(|lhs, rhs, orders| partial_compare_rows(lhs, rhs, orders).unwrap());
+
+        assert_eq!(
+            None,
+            partial_compare_rows(
+                OwnedRow::new(vec![42.into()]),
+                OwnedRow::new(vec!["abc".into()]),
+                &[OrderType::default()]
             )
-        );
-        assert_eq!(
-            Ordering::Equal,
-            compare_datum(Datum::None, Datum::None, OrderType::default(),)
-        );
-        assert_eq!(
-            Ordering::Less,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::Some(100.into()),
-                OrderType::ascending(),
-            )
-        );
-        assert_eq!(
-            Ordering::Greater,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::None,
-                OrderType::ascending_nulls_first(),
-            )
-        );
-        assert_eq!(
-            Ordering::Less,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::None,
-                OrderType::ascending_nulls_last(),
-            )
-        );
-        assert_eq!(
-            Ordering::Greater,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::None,
-                OrderType::descending_nulls_first(),
-            )
-        );
-        assert_eq!(
-            Ordering::Less,
-            compare_datum(
-                Datum::Some(42.into()),
-                Datum::None,
-                OrderType::descending_nulls_last(),
-            )
-        );
+        )
     }
 }
