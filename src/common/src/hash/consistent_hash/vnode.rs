@@ -18,7 +18,7 @@ use parse_display::Display;
 use crate::array::{Array, ArrayImpl, DataChunk};
 use crate::hash::Crc32HashCode;
 use crate::row::{Row, RowExt};
-use crate::types::ScalarRefImpl;
+use crate::types::{DatumRef, ScalarRefImpl};
 use crate::util::hash_util::Crc32FastBuilder;
 use crate::util::row_id::extract_vnode_id_from_row_id;
 
@@ -133,7 +133,7 @@ impl VirtualNode {
     // Similar to `compute_chunk`, it also contains special handling for serial columns.
     pub fn compute_row(row: impl Row, indices: &[usize]) -> VirtualNode {
         let project = row.project(indices);
-        if let Ok(Some(ScalarRefImpl::Serial(s))) = project.iter().exactly_one().as_ref() {
+        if let Ok(DatumRef::Some(ScalarRefImpl::Serial(s))) = project.iter().exactly_one() {
             return extract_vnode_id_from_row_id(s.as_row_id());
         }
 
@@ -173,8 +173,8 @@ mod tests {
     fn test_serial_key_row() {
         let mut gen = RowIdGenerator::new([VirtualNode::from_index(100)]);
         let row = OwnedRow::new(vec![
-            Some(ScalarImpl::Serial(gen.next().into())),
-            Some(ScalarImpl::Int64(12345)),
+            ScalarImpl::Serial(gen.next().into()).into(),
+            ScalarImpl::Int64(12345).into(),
         ]);
 
         let vnode = VirtualNode::compute_row(&row, &[0]);

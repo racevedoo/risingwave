@@ -111,7 +111,7 @@ impl TestStreamChunk for BigStreamChunk {
     }
 
     fn row_at(&self, _idx: usize) -> OwnedRow {
-        OwnedRow::new(vec![Some(ScalarImpl::Int32(114_514))])
+        OwnedRow::new(vec![Datum::Some(ScalarImpl::Int32(114_514))])
     }
 }
 
@@ -171,22 +171,10 @@ impl TestStreamChunk for WhatEverStreamChunk {
 
     fn row_at(&self, idx: usize) -> OwnedRow {
         match idx {
-            0 => OwnedRow::new(vec![
-                Some(1i32.into()),
-                Some(4.0f32.into()),
-                Some(5i64.into()),
-            ]),
-            1 => OwnedRow::new(vec![Some(2i32.into()), None, Some(6i64.into())]),
-            2 => OwnedRow::new(vec![
-                Some(3i32.into()),
-                Some(2.2f32.into()),
-                Some(8i64.into()),
-            ]),
-            3 => OwnedRow::new(vec![
-                Some(4i32.into()),
-                Some(1.8f32.into()),
-                Some(9i64.into()),
-            ]),
+            0 => OwnedRow::new(vec![1i32.into(), 4.0f32.into(), 5i64.into()]),
+            1 => OwnedRow::new(vec![2i32.into(), Datum::None, 6i64.into()]),
+            2 => OwnedRow::new(vec![3i32.into(), 2.2f32.into(), 8i64.into()]),
+            3 => OwnedRow::new(vec![4i32.into(), 1.8f32.into(), 9i64.into()]),
             _ => unreachable!(),
         }
     }

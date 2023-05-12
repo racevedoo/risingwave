@@ -165,8 +165,8 @@ pub trait RowExt: Row {
                     "{}",
                     self.0.iter().format_with(" | ", |datum, f| {
                         match datum {
-                            None => f(&"NULL"),
-                            Some(scalar) => f(&format_args!("{}", scalar.to_text())),
+                            DatumRef::None => f(&"NULL"),
+                            DatumRef::Some(scalar) => f(&format_args!("{}", scalar.to_text())),
                         }
                     })
                 )

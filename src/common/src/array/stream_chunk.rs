@@ -25,7 +25,7 @@ use crate::buffer::Bitmap;
 use crate::estimate_size::EstimateSize;
 use crate::field_generator::VarcharProperty;
 use crate::row::{OwnedRow, Row};
-use crate::types::{DataType, ToText};
+use crate::types::{DataType, DatumRef, ToText};
 use crate::util::iter_util::ZipEqFast;
 
 /// `Op` represents three operations in `StreamChunk`.
@@ -241,8 +241,8 @@ impl StreamChunk {
             );
             for datum in row_ref.iter() {
                 let str = match datum {
-                    None => "".to_owned(), // NULL
-                    Some(scalar) => scalar.to_text(),
+                    DatumRef::None => "".to_owned(),
+                    DatumRef::Some(scalar) => scalar.to_text(),
                 };
                 cells.push(Cell::new(str));
             }

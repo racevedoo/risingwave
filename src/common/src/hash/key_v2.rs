@@ -213,7 +213,7 @@ impl<'a, S: KeyStorage, N: NullBitmap> Deserializer<'a, S, N> {
                     $(
                         DataType::$DataType { .. } => {
                             let datum = self.deserialize(data_type);
-                            datum.map(ScalarImpl::$PhysicalType)
+                            datum.map(ScalarImpl::$PhysicalType).into()
                         },
                     )*
                 }

@@ -29,7 +29,7 @@ use crate::estimate_size::EstimateSize;
 use crate::field_generator::{FieldGeneratorImpl, VarcharProperty};
 use crate::hash::HashCode;
 use crate::row::Row;
-use crate::types::{DataType, StructType, ToOwnedDatum, ToText};
+use crate::types::{DataType, Datum, DatumRef, StructType, ToOwnedDatum, ToText};
 use crate::util::hash_util::finalize_hashers;
 use crate::util::iter_util::{ZipEqDebug, ZipEqFast};
 use crate::util::value_encoding::{
@@ -382,11 +382,9 @@ impl DataChunk {
         for row in self.rows() {
             let cells: Vec<_> = row
                 .iter()
-                .map(|v| {
-                    match v {
-                        None => "".to_owned(), // null
-                        Some(scalar) => scalar.to_text(),
-                    }
+                .map(|v| match v {
+                    DatumRef::None => "".to_owned(),
+                    DatumRef::Some(scalar) => scalar.to_text(),
                 })
                 .collect();
             table.add_row(cells);
@@ -757,10 +755,12 @@ impl DataChunkTestExt for DataChunk {
                 array_builders.iter_mut().zip(&datatypes).zip(&mut token)
             {
                 let datum = match val_str {
-                    "." => None,
-                    "t" => Some(true.into()),
-                    "f" => Some(false.into()),
-                    _ => Some(ScalarImpl::from_text(val_str.as_bytes(), ty).unwrap()),
+                    "." => Datum::None,
+                    "t" => true.into(),
+                    "f" => false.into(),
+                    _ => ScalarImpl::from_text(val_str.as_bytes(), ty)
+                        .unwrap()
+                        .into(),
                 };
                 builder.append_datum(datum);
             }

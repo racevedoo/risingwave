@@ -34,7 +34,7 @@ impl Row for Empty {
     #[inline]
     unsafe fn datum_at_unchecked(&self, _index: usize) -> DatumRef<'_> {
         // Always ignore the index and return `NULL`, which is okay for undefined behavior.
-        None
+        DatumRef::None
     }
 
     #[inline]

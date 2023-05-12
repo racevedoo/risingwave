@@ -149,7 +149,7 @@ macro_rules! impl_split_small_range {
                                             (*left..=*right)
                                                 .into_iter()
                                                 .map(|i| ScanRange {
-                                                    eq_conds: vec![Some(ScalarImpl::$type_name(i))],
+                                                    eq_conds: vec![Datum::Some(ScalarImpl::$type_name(i))],
                                                     range: full_range(),
                                                 })
                                                 .collect(),
@@ -184,14 +184,11 @@ mod tests {
         let mut scan_range = ScanRange::full_table_scan();
         assert!(scan_range.try_compute_vnode(&dist_key, &pk).is_none());
 
-        scan_range.eq_conds.push(Some(ScalarImpl::from(114)));
+        scan_range.eq_conds.push(114.into());
         assert!(scan_range.try_compute_vnode(&dist_key, &pk).is_none());
 
-        scan_range.eq_conds.push(Some(ScalarImpl::from(514)));
-        let row = OwnedRow::new(vec![
-            Some(ScalarImpl::from(114)),
-            Some(ScalarImpl::from(514)),
-        ]);
+        scan_range.eq_conds.push(514.into());
+        let row = OwnedRow::new(vec![114.into(), 514.into()]);
 
         let vnode = VirtualNode::compute_row(&row, &[0, 1]);
 
@@ -207,18 +204,14 @@ mod tests {
         let mut scan_range = ScanRange::full_table_scan();
         assert!(scan_range.try_compute_vnode(&dist_key, &pk).is_none());
 
-        scan_range.eq_conds.push(Some(ScalarImpl::from(114)));
+        scan_range.eq_conds.push(114.into());
         assert!(scan_range.try_compute_vnode(&dist_key, &pk).is_none());
 
-        scan_range.eq_conds.push(Some(ScalarImpl::from(514)));
+        scan_range.eq_conds.push(514.into());
         assert!(scan_range.try_compute_vnode(&dist_key, &pk).is_none());
 
-        scan_range.eq_conds.push(Some(ScalarImpl::from(114514)));
-        let row = OwnedRow::new(vec![
-            Some(ScalarImpl::from(114)),
-            Some(ScalarImpl::from(514)),
-            Some(ScalarImpl::from(114514)),
-        ]);
+        scan_range.eq_conds.push(114514.into());
+        let row = OwnedRow::new(vec![114.into(), 514.into(), 114514.into()]);
 
         let vnode = VirtualNode::compute_row(&row, &[2, 1]);
 

@@ -26,7 +26,7 @@ pub use timestamp::*;
 pub use varchar::*;
 
 use crate::array::{ListValue, StructValue};
-use crate::types::{DataType, Datum, ScalarImpl};
+use crate::types::{DataType, Datum};
 
 pub const DEFAULT_MIN: i16 = i16::MIN;
 pub const DEFAULT_MAX: i16 = i16::MAX;
@@ -272,13 +272,13 @@ impl FieldGeneratorImpl {
                     .iter_mut()
                     .map(|(_, gen)| gen.generate_datum(offset))
                     .collect();
-                Some(ScalarImpl::Struct(StructValue::new(data)))
+                StructValue::new(data).into()
             }
             FieldGeneratorImpl::List(field, list_length) => {
                 let data = (0..*list_length)
                     .map(|_| field.generate_datum(offset))
                     .collect::<Vec<_>>();
-                Some(ScalarImpl::List(ListValue::new(data)))
+                ListValue::new(data).into()
             }
         }
     }

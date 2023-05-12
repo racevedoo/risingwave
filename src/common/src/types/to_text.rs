@@ -243,15 +243,15 @@ for_all_scalar_variants! { impl_totext_for_scalar }
 impl ToText for DatumRef<'_> {
     fn write<W: Write>(&self, f: &mut W) -> Result {
         match self {
-            Some(data) => data.write(f),
-            None => write!(f, "NULL"),
+            DatumRef::Some(data) => data.write(f),
+            DatumRef::None => write!(f, "NULL"),
         }
     }
 
     fn write_with_type<W: Write>(&self, ty: &DataType, f: &mut W) -> Result {
         match self {
-            Some(data) => data.write_with_type(ty, f),
-            None => write!(f, "NULL"),
+            DatumRef::Some(data) => data.write_with_type(ty, f),
+            DatumRef::None => write!(f, "NULL"),
         }
     }
 }

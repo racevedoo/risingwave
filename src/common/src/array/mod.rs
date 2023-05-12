@@ -503,10 +503,10 @@ macro_rules! impl_array_builder {
             /// panicking if the datum's type does not match the array builder's type.
             pub fn append_datum_n(&mut self, n: usize, datum: impl ToDatumRef) {
                 match datum.to_datum_ref() {
-                    None => match self {
+                    DatumRef::None => match self {
                         $( Self::$variant_name(inner) => inner.append_n(n, None), )*
                     }
-                    Some(scalar_ref) => match (self, scalar_ref) {
+                    DatumRef::Some(scalar_ref) => match (self, scalar_ref) {
                         $( (Self::$variant_name(inner), ScalarRefImpl::$variant_name(v)) => inner.append_n(n, Some(v)), )*
                         (this_builder, this_scalar_ref) => panic!(
                             "Failed to append datum, array builder type: {}, scalar type: {}",
@@ -615,7 +615,8 @@ macro_rules! impl_array {
                 match self {
                     $( Self::$variant_name(inner) => inner
                         .value_at(idx)
-                        .map(|item| item.to_owned_scalar().to_scalar_value()), )*
+                        .map(|item| item.to_owned_scalar())
+                        .into(), )*
                 }
             }
 
@@ -628,7 +629,7 @@ macro_rules! impl_array {
             /// Get the enum-wrapped `ScalarRefImpl` out of the `Array`.
             pub fn value_at(&self, idx: usize) -> DatumRef<'_> {
                 match self {
-                    $( Self::$variant_name(inner) => inner.value_at(idx).map(ScalarRefImpl::$variant_name), )*
+                    $( Self::$variant_name(inner) => inner.value_at(idx).into(), )*
                 }
             }
 
@@ -640,7 +641,7 @@ macro_rules! impl_array {
             /// Unsafe version of getting the enum-wrapped `ScalarRefImpl` out of the `Array`.
             pub unsafe fn value_at_unchecked(&self, idx: usize) -> DatumRef<'_> {
                 match self {
-                    $( Self::$variant_name(inner) => inner.value_at_unchecked(idx).map(ScalarRefImpl::$variant_name), )*
+                    $( Self::$variant_name(inner) => inner.value_at_unchecked(idx).into(), )*
                 }
             }
 

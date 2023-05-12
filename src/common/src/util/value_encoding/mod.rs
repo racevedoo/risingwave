@@ -190,7 +190,7 @@ pub fn serialize_datum(cell: impl ToDatumRef) -> Vec<u8> {
 
 /// Serialize a datum into bytes (Not order guarantee, used in value encoding).
 pub fn serialize_datum_into(datum_ref: impl ToDatumRef, buf: &mut impl BufMut) {
-    if let Some(d) = datum_ref.to_datum_ref() {
+    if let DatumRef::Some(d) = datum_ref.to_datum_ref() {
         buf.put_u8(1);
         serialize_scalar(d, buf)
     } else {
@@ -199,7 +199,7 @@ pub fn serialize_datum_into(datum_ref: impl ToDatumRef, buf: &mut impl BufMut) {
 }
 
 pub fn estimate_serialize_datum_size(datum_ref: impl ToDatumRef) -> usize {
-    if let Some(d) = datum_ref.to_datum_ref() {
+    if let DatumRef::Some(d) = datum_ref.to_datum_ref() {
         1 + estimate_serialize_scalar_size(d)
     } else {
         1
@@ -216,8 +216,8 @@ pub fn deserialize_datum(mut data: impl Buf, ty: &DataType) -> Result<Datum> {
 fn inner_deserialize_datum(data: &mut impl Buf, ty: &DataType) -> Result<Datum> {
     let null_tag = data.get_u8();
     match null_tag {
-        0 => Ok(None),
-        1 => Some(deserialize_value(ty, data)).transpose(),
+        0 => Ok(Datum::None),
+        1 => deserialize_value(ty, data).map(Into::into),
         _ => Err(ValueEncodingError::InvalidTagEncoding(null_tag)),
     }
 }
@@ -479,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_estimate_size() {
-        let d: Datum = None;
+        let d = Datum::None;
         assert_eq!(estimate_serialize_datum_size(&d), serialize_datum(&d).len());
 
         test_estimate_serialize_scalar_size(ScalarImpl::Bool(true));

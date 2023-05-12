@@ -105,8 +105,8 @@ impl ToBinary for ScalarRefImpl<'_> {
 impl ToBinary for DatumRef<'_> {
     fn to_binary_with_type(&self, ty: &DataType) -> Result<Option<Bytes>> {
         match self {
-            Some(scalar) => scalar.to_binary_with_type(ty),
-            None => Ok(None),
+            DatumRef::Some(scalar) => scalar.to_binary_with_type(ty),
+            DatumRef::None => Ok(None),
         }
     }
 }

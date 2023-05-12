@@ -20,7 +20,7 @@ use rand::{Rng, SeedableRng};
 use serde_json::{json, Value};
 
 use super::DEFAULT_LENGTH;
-use crate::types::{Datum, Scalar};
+use crate::types::Datum;
 
 pub struct VarcharRandomVariableLengthField {
     seed: u64,
@@ -44,7 +44,7 @@ impl VarcharRandomVariableLengthField {
 
     pub fn generate_datum(&mut self, offset: u64) -> Datum {
         let s = self.generate_string(offset);
-        Some(s.into_boxed_str().to_scalar_value())
+        s.into_boxed_str().into()
     }
 }
 
@@ -78,7 +78,7 @@ impl VarcharRandomFixedLengthField {
             .take(self.length)
             .map(char::from)
             .collect();
-        Some(s.into_boxed_str().to_scalar_value())
+        s.into_boxed_str().into()
     }
 }
 
@@ -92,11 +92,6 @@ impl VarcharConstant {
     }
 
     pub fn generate_datum() -> Datum {
-        Some(
-            Self::CONSTANT_STRING
-                .to_string()
-                .into_boxed_str()
-                .to_scalar_value(),
-        )
+        Self::CONSTANT_STRING.to_string().into_boxed_str().into()
     }
 }

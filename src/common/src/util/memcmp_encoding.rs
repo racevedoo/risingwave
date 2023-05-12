@@ -20,7 +20,8 @@ use super::iter_util::{ZipEqDebug, ZipEqFast};
 use crate::array::{ArrayImpl, DataChunk};
 use crate::row::{OwnedRow, Row};
 use crate::types::{
-    DataType, Date, Datum, Int256, ScalarImpl, Serial, Time, Timestamp, ToDatumRef, F32, F64,
+    DataType, Date, Datum, DatumRef, Int256, ScalarImpl, Serial, Time, Timestamp, ToDatumRef, F32,
+    F64,
 };
 use crate::util::sort_util::{ColumnOrder, OrderType};
 
@@ -39,7 +40,7 @@ pub(crate) fn serialize_datum(
     } else {
         (0u8, 1u8) // None < Some
     };
-    if let Some(scalar) = datum.to_datum_ref() {
+    if let DatumRef::Some(scalar) = datum.to_datum_ref() {
         null_tag_some.serialize(&mut *serializer)?;
         scalar.serialize(serializer)?;
     } else {
@@ -54,7 +55,7 @@ pub(crate) fn serialize_datum_in_composite(
 ) -> memcomparable::Result<()> {
     // NOTE: No need to call `serializer.set_reverse` because we are inside a
     // composite type value, we should follow the outside order, except for `NULL`s.
-    if let Some(scalar) = datum.to_datum_ref() {
+    if let DatumRef::Some(scalar) = datum.to_datum_ref() {
         DEFAULT_NULL_TAG_SOME.serialize(&mut *serializer)?;
         scalar.serialize(serializer)?;
     } else {
@@ -76,9 +77,9 @@ pub(crate) fn deserialize_datum(
         (0u8, 1u8) // None < Some
     };
     if null_tag == null_tag_none {
-        Ok(None)
+        Ok(Datum::None)
     } else if null_tag == null_tag_some {
-        Ok(Some(ScalarImpl::deserialize(ty, deserializer)?))
+        Ok(ScalarImpl::deserialize(ty, deserializer)?.into())
     } else {
         Err(memcomparable::Error::InvalidTagEncoding(null_tag as _))
     }
@@ -91,9 +92,9 @@ pub(crate) fn deserialize_datum_in_composite(
     // NOTE: Similar to serialization, we should follow the outside order, except for `NULL`s.
     let null_tag = u8::deserialize(&mut *deserializer)?;
     if null_tag == DEFAULT_NULL_TAG_NONE {
-        Ok(None)
+        Ok(Datum::None)
     } else if null_tag == DEFAULT_NULL_TAG_SOME {
-        Ok(Some(ScalarImpl::deserialize(ty, deserializer)?))
+        Ok(ScalarImpl::deserialize(ty, deserializer)?.into())
     } else {
         Err(memcomparable::Error::InvalidTagEncoding(null_tag as _))
     }
@@ -259,13 +260,13 @@ mod tests {
     use super::*;
     use crate::array::{DataChunk, ListValue, StructValue};
     use crate::row::{OwnedRow, RowExt};
-    use crate::types::{DataType, FloatExt, ScalarImpl, F32};
+    use crate::types::{DataType, FloatExt, F32};
     use crate::util::sort_util::{ColumnOrder, OrderType};
 
     #[test]
     fn test_memcomparable() {
         fn encode_num(num: Option<i32>, order_type: OrderType) -> Vec<u8> {
-            encode_value(num.map(ScalarImpl::from), order_type).unwrap()
+            encode_value(Datum::from(num), order_type).unwrap()
         }
 
         {
@@ -349,14 +350,10 @@ mod tests {
     fn test_memcomparable_structs() {
         // NOTE: `NULL`s inside composite type values are always the largest.
 
-        let struct_none = None;
-        let struct_1 = Some(
-            StructValue::new(vec![Some(ScalarImpl::from(1)), Some(ScalarImpl::from(2))]).into(),
-        );
-        let struct_2 = Some(
-            StructValue::new(vec![Some(ScalarImpl::from(1)), Some(ScalarImpl::from(3))]).into(),
-        );
-        let struct_3 = Some(StructValue::new(vec![Some(ScalarImpl::from(1)), None]).into());
+        let struct_none = Datum::None;
+        let struct_1 = StructValue::new(vec![1.into(), 2.into()]).into();
+        let struct_2 = StructValue::new(vec![1.into(), 3.into()]).into();
+        let struct_3 = StructValue::new(vec![1.into(), Datum::None]).into();
 
         {
             // ASC NULLS FIRST (NULLS SMALLEST)
@@ -408,12 +405,10 @@ mod tests {
     fn test_memcomparable_lists() {
         // NOTE: `NULL`s inside composite type values are always the largest.
 
-        let list_none = None;
-        let list_1 =
-            Some(ListValue::new(vec![Some(ScalarImpl::from(1)), Some(ScalarImpl::from(2))]).into());
-        let list_2 =
-            Some(ListValue::new(vec![Some(ScalarImpl::from(1)), Some(ScalarImpl::from(3))]).into());
-        let list_3 = Some(ListValue::new(vec![Some(ScalarImpl::from(1)), None]).into());
+        let list_none = Datum::None;
+        let list_1 = ListValue::new(vec![1.into(), 2.into()]).into();
+        let list_2 = ListValue::new(vec![1.into(), 3.into()]).into();
+        let list_3 = ListValue::new(vec![1.into(), Datum::None]).into();
 
         {
             // ASC NULLS FIRST (NULLS SMALLEST)
@@ -467,12 +462,13 @@ mod tests {
         use rand::seq::SliceRandom;
 
         fn serialize(f: F32) -> Vec<u8> {
-            encode_value(&Some(ScalarImpl::from(f)), OrderType::default()).unwrap()
+            encode_value(Datum::from(f), OrderType::default()).unwrap()
         }
 
         fn deserialize(data: Vec<u8>) -> F32 {
             decode_value(&DataType::Float32, &data, OrderType::default())
                 .unwrap()
+                .into_option()
                 .unwrap()
                 .into_float32()
         }
@@ -512,14 +508,14 @@ mod tests {
 
     #[test]
     fn test_encode_row() {
-        let v10 = Some(ScalarImpl::Int32(42));
+        let v10: Datum = 42i32.into();
         let v10_cloned = v10.clone();
-        let v11 = Some(ScalarImpl::Utf8("hello".into()));
+        let v11: Datum = "hello".into();
         let v11_cloned = v11.clone();
-        let v12 = Some(ScalarImpl::Float32(4.0.into()));
-        let v20 = Some(ScalarImpl::Int32(42));
-        let v21 = Some(ScalarImpl::Utf8("hell".into()));
-        let v22 = Some(ScalarImpl::Float32(3.0.into()));
+        let v12 = 4.0f32.into();
+        let v20 = 42i32.into();
+        let v21 = "hell".into();
+        let v22 = 3.0f32.into();
 
         let row1 = OwnedRow::new(vec![v10, v11, v12]);
         let row2 = OwnedRow::new(vec![v20, v21, v22]);
@@ -527,16 +523,8 @@ mod tests {
         let order_types = vec![OrderType::ascending(), OrderType::descending()];
 
         let encoded_row1 = encode_row(row1.project(&order_col_indices), &order_types).unwrap();
-        let encoded_v10 = encode_value(
-            v10_cloned.as_ref().map(|x| x.as_scalar_ref_impl()),
-            OrderType::ascending(),
-        )
-        .unwrap();
-        let encoded_v11 = encode_value(
-            v11_cloned.as_ref().map(|x| x.as_scalar_ref_impl()),
-            OrderType::descending(),
-        )
-        .unwrap();
+        let encoded_v10 = encode_value(v10_cloned.as_ref(), OrderType::ascending()).unwrap();
+        let encoded_v11 = encode_value(v11_cloned.as_ref(), OrderType::descending()).unwrap();
         let concated_encoded_row1 = encoded_v10
             .into_iter()
             .chain(encoded_v11.into_iter())
@@ -549,12 +537,12 @@ mod tests {
 
     #[test]
     fn test_encode_chunk() {
-        let v10 = Some(ScalarImpl::Int32(42));
-        let v11 = Some(ScalarImpl::Utf8("hello".into()));
-        let v12 = Some(ScalarImpl::Float32(4.0.into()));
-        let v20 = Some(ScalarImpl::Int32(42));
-        let v21 = Some(ScalarImpl::Utf8("hell".into()));
-        let v22 = Some(ScalarImpl::Float32(3.0.into()));
+        let v10 = 42i32.into();
+        let v11 = "hello".into();
+        let v12 = 4.0f32.into();
+        let v20 = 42i32.into();
+        let v21 = "hell".into();
+        let v22 = 3.0f32.into();
 
         let row1 = OwnedRow::new(vec![v10, v11, v12]);
         let row2 = OwnedRow::new(vec![v20, v21, v22]);

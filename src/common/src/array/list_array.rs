@@ -328,8 +328,8 @@ pub fn display_for_explain(list: &ListValue) -> String {
             .iter()
             .map(|v| {
                 match v.as_ref() {
-                    None => "null".into(),
-                    Some(scalar) => scalar.as_scalar_ref_impl().to_text(),
+                    DatumRef::None => "null".into(),
+                    DatumRef::Some(scalar) => scalar.to_text(),
                 }
             })
             .collect::<Vec<String>>()
@@ -409,7 +409,7 @@ impl<'a> ListRef<'a> {
     pub fn flatten(self) -> Vec<DatumRef<'a>> {
         iter_elems_ref!(self, it, {
             it.flat_map(|datum_ref| {
-                if let Some(ScalarRefImpl::List(list_ref)) = datum_ref {
+                if let DatumRef::Some(ScalarRefImpl::List(list_ref)) = datum_ref {
                     list_ref.flatten()
                 } else {
                     vec![datum_ref]
@@ -477,21 +477,20 @@ impl PartialEq for ListRef<'_> {
 impl PartialOrd for ListRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         iter_elems_ref!(*self, lhs, {
-            iter_elems_ref!(*other, rhs, {
-                Some(lhs.cmp_by(rhs, |lv, rv| cmp_list_value(&lv, &rv)))
-            })
+            iter_elems_ref!(*other, rhs, { Some(lhs.cmp_by(rhs, cmp_list_value)) })
         })
     }
 }
 
-fn cmp_list_value(l: &Option<ScalarRefImpl<'_>>, r: &Option<ScalarRefImpl<'_>>) -> Ordering {
-    match (l, r) {
+// TODO(): use compare_datum
+fn cmp_list_value(l: impl ToDatumRef, r: impl ToDatumRef) -> Ordering {
+    match (l.to_datum_ref(), r.to_datum_ref()) {
         // Comparability check was performed by frontend beforehand.
-        (Some(sl), Some(sr)) => sl.partial_cmp(sr).unwrap(),
+        (DatumRef::Some(sl), DatumRef::Some(sr)) => sl.partial_cmp(&sr).unwrap(),
         // Nulls are larger than everything, ARRAY[1, null] > ARRAY[1, 2] for example.
-        (Some(_), None) => Ordering::Less,
-        (None, Some(_)) => Ordering::Greater,
-        (None, None) => Ordering::Equal,
+        (DatumRef::Some(_), DatumRef::None) => Ordering::Less,
+        (DatumRef::None, DatumRef::Some(_)) => Ordering::Greater,
+        (DatumRef::None, DatumRef::None) => Ordering::Equal,
     }
 }
 
@@ -518,15 +517,17 @@ impl ToText for ListRef<'_> {
                     let s = datum_ref.to_text();
                     // Never quote null or inner list, but quote empty, verbatim 'null', special
                     // chars and whitespaces.
-                    let need_quote = !matches!(datum_ref, None | Some(ScalarRefImpl::List(_)))
-                        && (s.is_empty()
-                            || s.to_ascii_lowercase() == "null"
-                            || s.contains([
-                                '"', '\\', '{', '}', ',',
-                                // PostgreSQL `array_isspace` includes '\x0B' but rust
-                                // [`char::is_ascii_whitespace`] does not.
-                                ' ', '\t', '\n', '\r', '\x0B', '\x0C',
-                            ]));
+                    let need_quote = !matches!(
+                        datum_ref,
+                        DatumRef::None | DatumRef::Some(ScalarRefImpl::List(_))
+                    ) && (s.is_empty()
+                        || s.to_ascii_lowercase() == "null"
+                        || s.contains([
+                            '"', '\\', '{', '}', ',',
+                            // PostgreSQL `array_isspace` includes '\x0B' but rust
+                            // [`char::is_ascii_whitespace`] does not.
+                            ' ', '\t', '\n', '\r', '\x0B', '\x0C',
+                        ]));
                     if need_quote {
                         f(&"\"")?;
                         s.chars().try_for_each(|c| {
@@ -590,16 +591,16 @@ mod tests {
             list_values,
             vec![
                 Some(ListValue::new(vec![
-                    Some(ScalarImpl::Int32(12)),
-                    Some(ScalarImpl::Int32(-7)),
-                    Some(ScalarImpl::Int32(25)),
+                    Datum::Some(ScalarImpl::Int32(12)),
+                    Datum::Some(ScalarImpl::Int32(-7)),
+                    Datum::Some(ScalarImpl::Int32(25)),
                 ])),
                 None,
                 Some(ListValue::new(vec![
-                    Some(ScalarImpl::Int32(0)),
-                    Some(ScalarImpl::Int32(-127)),
-                    Some(ScalarImpl::Int32(127)),
-                    Some(ScalarImpl::Int32(50)),
+                    Datum::Some(ScalarImpl::Int32(0)),
+                    Datum::Some(ScalarImpl::Int32(-127)),
+                    Datum::Some(ScalarImpl::Int32(127)),
+                    Datum::Some(ScalarImpl::Int32(50)),
                 ])),
                 Some(ListValue::new(vec![])),
             ]
@@ -657,7 +658,7 @@ mod tests {
         {
             let mut builder =
                 ListArrayBuilder::with_type(1, DataType::List(Box::new(DataType::Int32)));
-            let val = ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]);
+            let val = ListValue::new(vec![1.into(), 2.into(), 3.into()]);
             builder.append(Some(ListRef::ValueRef { val: &val }));
             assert!(builder.pop().is_some());
             assert!(builder.pop().is_none());
@@ -668,14 +669,14 @@ mod tests {
         {
             let meta = DataType::List(Box::new(DataType::List(Box::new(DataType::Int32))));
             let mut builder = ListArrayBuilder::with_type(2, meta);
-            let val1 = ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]);
-            let val2 = ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]);
-            let list1 = ListValue::new(vec![Some(val1.into()), Some(val2.into())]);
+            let val1 = ListValue::new(vec![1.into(), 2.into(), 3.into()]);
+            let val2 = ListValue::new(vec![1.into(), 2.into(), 3.into()]);
+            let list1 = ListValue::new(vec![val1.into(), val2.into()]);
             builder.append(Some(ListRef::ValueRef { val: &list1 }));
 
-            let val3 = ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]);
-            let val4 = ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]);
-            let list2 = ListValue::new(vec![Some(val3.into()), Some(val4.into())]);
+            let val3 = ListValue::new(vec![1.into(), 2.into(), 3.into()]);
+            let val4 = ListValue::new(vec![1.into(), 2.into(), 3.into()]);
+            let list2 = ListValue::new(vec![val3.into(), val4.into()]);
 
             builder.append(Some(ListRef::ValueRef { val: &list2 }));
 
@@ -737,32 +738,19 @@ mod tests {
             nested_list_values,
             vec![
                 Some(ListValue::new(vec![
-                    Some(ScalarImpl::List(ListValue::new(vec![
-                        Some(ScalarImpl::Int32(1)),
-                        Some(ScalarImpl::Int32(2)),
-                    ]))),
-                    Some(ScalarImpl::List(ListValue::new(vec![
-                        Some(ScalarImpl::Int32(3)),
-                        Some(ScalarImpl::Int32(4)),
-                    ]))),
+                    ListValue::new(vec![1i32.into(), 2i32.into()]).into(),
+                    ListValue::new(vec![3i32.into(), 4i32.into()]).into(),
                 ])),
                 Some(ListValue::new(vec![
-                    Some(ScalarImpl::List(ListValue::new(vec![
-                        Some(ScalarImpl::Int32(5)),
-                        Some(ScalarImpl::Int32(6)),
-                        Some(ScalarImpl::Int32(7)),
-                    ]))),
-                    None,
-                    Some(ScalarImpl::List(ListValue::new(vec![Some(
-                        ScalarImpl::Int32(8)
-                    ),]))),
+                    ListValue::new(vec![5i32.into(), 6i32.into(), 7i32.into()]).into(),
+                    Datum::None,
+                    ListValue::new(vec![8i32.into()]).into(),
                 ])),
-                Some(ListValue::new(vec![Some(ScalarImpl::List(
-                    ListValue::new(vec![
-                        Some(ScalarImpl::Int32(9)),
-                        Some(ScalarImpl::Int32(10)),
-                    ])
-                )),])),
+                Some(ListValue::new(vec![ListValue::new(vec![
+                    9i32.into(),
+                    10i32.into(),
+                ])
+                .into()])),
             ]
         );
 
@@ -781,57 +769,52 @@ mod tests {
     fn test_list_value_cmp() {
         // ARRAY[1, 1] < ARRAY[1, 2, 1]
         assert_lt!(
-            ListValue::new(vec![Some(1.into()), Some(1.into())]),
-            ListValue::new(vec![Some(1.into()), Some(2.into()), Some(1.into())]),
+            ListValue::new(vec![1.into(), 1.into()]),
+            ListValue::new(vec![1.into(), 2.into(), 1.into()]),
         );
         // ARRAY[1, 2] < ARRAY[1, 2, 1]
         assert_lt!(
-            ListValue::new(vec![Some(1.into()), Some(2.into())]),
-            ListValue::new(vec![Some(1.into()), Some(2.into()), Some(1.into())]),
+            ListValue::new(vec![1.into(), 2.into()]),
+            ListValue::new(vec![1.into(), 2.into(), 1.into()]),
         );
         // ARRAY[1, 3] > ARRAY[1, 2, 1]
         assert_gt!(
-            ListValue::new(vec![Some(1.into()), Some(3.into())]),
-            ListValue::new(vec![Some(1.into()), Some(2.into()), Some(1.into())]),
+            ListValue::new(vec![1.into(), 3.into()]),
+            ListValue::new(vec![1.into(), 2.into(), 1.into()]),
         );
         // null > 1
         assert_eq!(
-            cmp_list_value(&None, &Some(ScalarRefImpl::Int32(1))),
+            cmp_list_value(Datum::None, Datum::Some(1.into())),
             Ordering::Greater
         );
         // ARRAY[1, 2, null] > ARRAY[1, 2, 1]
         assert_gt!(
-            ListValue::new(vec![Some(1.into()), Some(2.into()), None]),
-            ListValue::new(vec![Some(1.into()), Some(2.into()), Some(1.into())]),
+            ListValue::new(vec![1.into(), 2.into(), Datum::None]),
+            ListValue::new(vec![1.into(), 2.into(), 1.into()]),
         );
         // Null value in first ARRAY results into a Greater ordering regardless of the smaller ARRAY
         // length. ARRAY[1, null] > ARRAY[1, 2, 3]
         assert_gt!(
-            ListValue::new(vec![Some(1.into()), None]),
-            ListValue::new(vec![Some(1.into()), Some(2.into()), Some(3.into())]),
+            ListValue::new(vec![1.into(), Datum::None]),
+            ListValue::new(vec![1.into(), 2.into(), 3.into()]),
         );
         // ARRAY[1, null] == ARRAY[1, null]
         assert_eq!(
-            ListValue::new(vec![Some(1.into()), None]),
-            ListValue::new(vec![Some(1.into()), None]),
+            ListValue::new(vec![1.into(), Datum::None]),
+            ListValue::new(vec![1.into(), Datum::None]),
         );
     }
 
     #[test]
     fn test_list_ref_display() {
-        let v = ListValue::new(vec![Some(1.into()), None]);
+        let v = ListValue::new(vec![1.into(), Datum::None]);
         let r = ListRef::ValueRef { val: &v };
         assert_eq!("{1,NULL}".to_string(), format!("{}", r.to_text()));
     }
 
     #[test]
     fn test_serialize_deserialize() {
-        let value = ListValue::new(vec![
-            Some("abcd".into()),
-            Some("".into()),
-            None,
-            Some("a".into()),
-        ]);
+        let value = ListValue::new(vec!["abcd".into(), "".into(), Datum::None, "a".into()]);
         let list_ref = ListRef::ValueRef { val: &value };
         let mut serializer = memcomparable::Serializer::new(vec![]);
         serializer.set_reverse(true);
@@ -863,39 +846,26 @@ mod tests {
     fn test_memcomparable() {
         let cases = [
             (
-                ListValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(456.to_scalar_value()),
-                ]),
-                ListValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(789.to_scalar_value()),
-                ]),
+                ListValue::new(vec![123.into(), 456.into()]),
+                ListValue::new(vec![123.into(), 789.into()]),
                 DataType::Int32,
                 Ordering::Less,
             ),
             (
-                ListValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(456.to_scalar_value()),
-                ]),
-                ListValue::new(vec![Some(123.to_scalar_value())]),
+                ListValue::new(vec![123.into(), 456.into()]),
+                ListValue::new(vec![123.into()]),
                 DataType::Int32,
                 Ordering::Greater,
             ),
             (
-                ListValue::new(vec![None, Some("".into())]),
-                ListValue::new(vec![None, None]),
+                ListValue::new(vec![Datum::None, "".into()]),
+                ListValue::new(vec![Datum::None, Datum::None]),
                 DataType::Varchar,
                 Ordering::Less,
             ),
             (
-                ListValue::new(vec![Some(2.to_scalar_value())]),
-                ListValue::new(vec![
-                    Some(1.to_scalar_value()),
-                    None,
-                    Some(3.to_scalar_value()),
-                ]),
+                ListValue::new(vec![2.into()]),
+                ListValue::new(vec![1.into(), Datum::None, 3.into()]),
                 DataType::Int32,
                 Ordering::Greater,
             ),
@@ -947,7 +917,6 @@ mod tests {
     #[test]
     fn test_listref() {
         use crate::array::*;
-        use crate::types;
         let arr = ListArray::from_iter(
             [
                 Some(array! { I32Array, [Some(1), Some(2), Some(3)] }.into()),
@@ -962,17 +931,12 @@ mod tests {
         assert_eq!(
             list_ref,
             ListRef::ValueRef {
-                val: &ListValue::new(vec![
-                    Some(4.to_scalar_value()),
-                    Some(5.to_scalar_value()),
-                    Some(6.to_scalar_value()),
-                    Some(7.to_scalar_value()),
-                ]),
+                val: &ListValue::new(vec![4.into(), 5.into(), 6.into(), 7.into()]),
             }
         );
 
         // Get 2nd value from ListRef
         let scalar = list_ref.elem_at(1).unwrap();
-        assert_eq!(scalar, Some(types::ScalarRefImpl::Int32(5)));
+        assert_eq!(scalar.to_owned(), 5.into());
     }
 }

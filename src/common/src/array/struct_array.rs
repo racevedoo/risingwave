@@ -27,9 +27,7 @@ use super::{Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, ArrayResult};
 use crate::array::ArrayRef;
 use crate::buffer::{Bitmap, BitmapBuilder};
 use crate::estimate_size::EstimateSize;
-use crate::types::{
-    hash_datum, DataType, Datum, DatumRef, Scalar, ScalarRefImpl, StructType, ToDatumRef, ToText,
-};
+use crate::types::{hash_datum, DataType, Datum, DatumRef, Scalar, StructType, ToDatumRef, ToText};
 use crate::util::iter_util::ZipEqFast;
 use crate::util::memcmp_encoding;
 use crate::util::value_encoding::estimate_serialize_datum_size;
@@ -427,20 +425,21 @@ impl PartialOrd for StructRef<'_> {
                 if l.len() != r.len() {
                     return None;
                 }
-                Some(l.cmp_by(r, |lv, rv| cmp_struct_field(&lv, &rv)))
+                Some(l.cmp_by(r, cmp_struct_field))
             })
         })
     }
 }
 
-fn cmp_struct_field(l: &Option<ScalarRefImpl<'_>>, r: &Option<ScalarRefImpl<'_>>) -> Ordering {
-    match (l, r) {
+// TODO(): use compare_datum
+fn cmp_struct_field(l: impl ToDatumRef, r: impl ToDatumRef) -> Ordering {
+    match (l.to_datum_ref(), r.to_datum_ref()) {
         // Comparability check was performed by frontend beforehand.
-        (Some(sl), Some(sr)) => sl.partial_cmp(sr).unwrap(),
+        (DatumRef::Some(sl), DatumRef::Some(sr)) => sl.partial_cmp(&sr).unwrap(),
         // Nulls are larger than everything, (1, null) > (1, 2) for example.
-        (Some(_), None) => Ordering::Less,
-        (None, Some(_)) => Ordering::Greater,
-        (None, None) => Ordering::Equal,
+        (DatumRef::Some(_), DatumRef::None) => Ordering::Less,
+        (DatumRef::None, DatumRef::Some(_)) => Ordering::Greater,
+        (DatumRef::None, DatumRef::None) => Ordering::Equal,
     }
 }
 
@@ -500,7 +499,6 @@ mod tests {
     use more_asserts::assert_gt;
 
     use super::*;
-    use crate::types::{F32, F64};
     use crate::{array, try_match_expand};
 
     // Empty struct is allowed in postgres.
@@ -532,15 +530,9 @@ mod tests {
             struct_values,
             vec![
                 None,
-                Some(StructValue::new(vec![
-                    Some(ScalarImpl::Int32(1)),
-                    Some(ScalarImpl::Float32(3.0.into())),
-                ])),
+                Some(StructValue::new(vec![1i32.into(), 3.0f32.into()])),
                 None,
-                Some(StructValue::new(vec![
-                    Some(ScalarImpl::Int32(2)),
-                    Some(ScalarImpl::Float32(4.0.into())),
-                ])),
+                Some(StructValue::new(vec![2i32.into(), 4.0f32.into()])),
             ]
         );
 
@@ -579,45 +571,43 @@ mod tests {
     fn test_struct_value_cmp() {
         // (1, 2.0) > (1, 1.0)
         assert_gt!(
-            StructValue::new(vec![Some(1.into()), Some(2.0.into())]),
-            StructValue::new(vec![Some(1.into()), Some(1.0.into())]),
+            StructValue::new(vec![1.into(), 2.0.into()]),
+            StructValue::new(vec![1.into(), 1.0.into()]),
         );
         // null > 1
         assert_eq!(
-            cmp_struct_field(&None, &Some(ScalarRefImpl::Int32(1))),
+            cmp_struct_field(Datum::None, Datum::Some(1i32.into())),
             Ordering::Greater
         );
         // (1, null, 3) > (1, 1.0, 2)
         assert_gt!(
-            StructValue::new(vec![Some(1.into()), None, Some(3.into())]),
-            StructValue::new(vec![Some(1.into()), Some(1.0.into()), Some(2.into())]),
+            StructValue::new(vec![1.into(), Datum::None, 3.into()]),
+            StructValue::new(vec![1.into(), 1.0.into(), 2.into()]),
         );
         // (1, null) == (1, null)
         assert_eq!(
-            StructValue::new(vec![Some(1.into()), None]),
-            StructValue::new(vec![Some(1.into()), None]),
+            StructValue::new(vec![1.into(), Datum::None]),
+            StructValue::new(vec![1.into(), Datum::None]),
         );
     }
 
     #[test]
     fn test_serialize_deserialize() {
         let value = StructValue::new(vec![
-            Some(F32::from(3.2).to_scalar_value()),
-            Some("abcde".into()),
-            Some(
-                StructValue::new(vec![
-                    Some(F64::from(1.3).to_scalar_value()),
-                    Some("a".into()),
-                    None,
-                    Some(StructValue::new(vec![]).to_scalar_value()),
-                ])
-                .to_scalar_value(),
-            ),
-            None,
-            Some("".into()),
-            None,
-            Some(StructValue::new(vec![]).to_scalar_value()),
-            Some(12345.to_scalar_value()),
+            3.2f32.into(),
+            "abcde".into(),
+            StructValue::new(vec![
+                1.3f64.into(),
+                "a".into(),
+                Datum::None,
+                StructValue::new(vec![]).into(),
+            ])
+            .into(),
+            Datum::None,
+            "".into(),
+            Datum::None,
+            StructValue::new(vec![]).into(),
+            12345.into(),
         ]);
         let fields = [
             DataType::Float32,
@@ -669,40 +659,28 @@ mod tests {
     fn test_memcomparable() {
         let cases = [
             (
-                StructValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(456i64.to_scalar_value()),
-                ]),
-                StructValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(789i64.to_scalar_value()),
-                ]),
+                StructValue::new(vec![123.into(), 456i64.into()]),
+                StructValue::new(vec![123.into(), 789i64.into()]),
                 vec![DataType::Int32, DataType::Int64],
                 Ordering::Less,
             ),
             (
-                StructValue::new(vec![
-                    Some(123.to_scalar_value()),
-                    Some(456i64.to_scalar_value()),
-                ]),
-                StructValue::new(vec![
-                    Some(1.to_scalar_value()),
-                    Some(789i64.to_scalar_value()),
-                ]),
+                StructValue::new(vec![123.into(), 456i64.into()]),
+                StructValue::new(vec![1.into(), 789i64.into()]),
                 vec![DataType::Int32, DataType::Int64],
                 Ordering::Greater,
             ),
             (
-                StructValue::new(vec![Some("".into())]),
-                StructValue::new(vec![None]),
+                StructValue::new(vec!["".into()]),
+                StructValue::new(vec![Datum::None]),
                 vec![DataType::Varchar],
                 Ordering::Less,
             ),
             (
-                StructValue::new(vec![Some("abcd".into()), None]),
+                StructValue::new(vec!["abcd".into(), Datum::None]),
                 StructValue::new(vec![
-                    Some("abcd".into()),
-                    Some(StructValue::new(vec![Some("abcdef".into())]).to_scalar_value()),
+                    "abcd".into(),
+                    StructValue::new(vec!["abcdef".into()]).into(),
                 ]),
                 vec![
                     DataType::Varchar,
@@ -712,12 +690,12 @@ mod tests {
             ),
             (
                 StructValue::new(vec![
-                    Some("abcd".into()),
-                    Some(StructValue::new(vec![Some("abcdef".into())]).to_scalar_value()),
+                    "abcd".into(),
+                    StructValue::new(vec!["abcdef".into()]).into(),
                 ]),
                 StructValue::new(vec![
-                    Some("abcd".into()),
-                    Some(StructValue::new(vec![Some("abcdef".into())]).to_scalar_value()),
+                    "abcd".into(),
+                    StructValue::new(vec!["abcdef".into()]).into(),
                 ]),
                 vec![
                     DataType::Varchar,

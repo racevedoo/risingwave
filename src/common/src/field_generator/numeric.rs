@@ -95,7 +95,7 @@ where
     fn generate_datum(&mut self, offset: u64) -> Datum {
         let mut rng = StdRng::seed_from_u64(offset ^ self.seed);
         let result = rng.gen_range(self.min..=self.max);
-        Some(result.to_scalar_value())
+        result.into()
     }
 }
 impl<T> NumericFieldSequenceGenerator for NumericFieldSequenceConcrete<T>
@@ -155,9 +155,9 @@ where
             + T::try_from(self.step).unwrap() * self.cur;
         self.cur += T::one();
         if partition_result > self.end {
-            None
+            Datum::None
         } else {
-            Some(partition_result.to_scalar_value())
+            Datum::Some(partition_result.into())
         }
     }
 }
@@ -233,10 +233,7 @@ mod tests {
                 .unwrap();
 
         for i in 5..=10 {
-            assert_eq!(
-                f32_field.generate_datum(),
-                Some(F32::from(i as f32).to_scalar_value())
-            );
+            assert_eq!(f32_field.generate_datum(), (i as f32).into());
         }
     }
     #[test]
@@ -246,8 +243,8 @@ mod tests {
         let (lower, upper) = ((-5).to_scalar_value(), 5.to_scalar_value());
         for i in 0..100 {
             let res = i32_field.generate_datum(i as u64);
-            assert!(res.is_some());
-            let res = res.unwrap();
+            assert!(!res.is_null());
+            let res = res.into_option().unwrap();
             assert!(lower <= res && res <= upper);
         }
     }

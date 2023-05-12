@@ -424,7 +424,7 @@ impl DataType {
                 data_types
                     .fields
                     .iter()
-                    .map(|data_type| Some(data_type.min()))
+                    .map(|data_type| data_type.min().into())
                     .collect_vec(),
             )),
             DataType::List { .. } => ScalarImpl::List(ListValue::new(vec![])),
@@ -451,6 +451,7 @@ pub trait Scalar:
     + Clone
     + TryFrom<ScalarImpl, Error = ArrayError>
     + Into<ScalarImpl>
+    + Into<Datum>
 {
     /// Type for reference of `Scalar`
     type ScalarRefType<'a>: ScalarRef<'a, ScalarType = Self> + 'a
@@ -587,16 +588,17 @@ macro_rules! scalar_impl_partial_ord {
 
 for_all_scalar_variants! { scalar_impl_partial_ord }
 
-pub type Datum = Option<ScalarImpl>;
-pub type DatumRef<'a> = Option<ScalarRefImpl<'a>>;
+// TODO(): to remove
+// pub type Datum = Option<ScalarImpl>;
+// pub type DatumRef<'a> = Option<ScalarRefImpl<'a>>;
 
-#[derive(Debug, Clone, PartialEq, Eq, EstimateSize)]
-pub enum DatumV2 {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, EstimateSize)]
+pub enum Datum {
     None,
     Some(ScalarImpl),
 }
 
-impl DatumV2 {
+impl Datum {
     pub fn into_option(self) -> Option<ScalarImpl> {
         match self {
             Self::None => None,
@@ -615,15 +617,15 @@ impl DatumV2 {
         matches!(self, Self::None)
     }
 
-    pub fn as_ref(&self) -> DatumRefV2<'_> {
+    pub fn as_ref(&self) -> DatumRef<'_> {
         match self {
-            Self::None => DatumRefV2::None,
-            Self::Some(s) => DatumRefV2::Some(s.as_scalar_ref_impl()),
+            Self::None => DatumRef::None,
+            Self::Some(s) => DatumRef::Some(s.as_scalar_ref_impl()),
         }
     }
 }
 
-impl From<Option<ScalarImpl>> for DatumV2 {
+impl From<Option<ScalarImpl>> for Datum {
     fn from(s: Option<ScalarImpl>) -> Self {
         match s {
             None => Self::None,
@@ -632,19 +634,19 @@ impl From<Option<ScalarImpl>> for DatumV2 {
     }
 }
 
-impl From<ScalarImpl> for DatumV2 {
+impl From<ScalarImpl> for Datum {
     fn from(s: ScalarImpl) -> Self {
         Self::Some(s)
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum DatumRefV2<'a> {
+pub enum DatumRef<'a> {
     None,
     Some(ScalarRefImpl<'a>),
 }
 
-impl<'a> DatumRefV2<'a> {
+impl<'a> DatumRef<'a> {
     pub fn into_option(self) -> Option<ScalarRefImpl<'a>> {
         match self {
             Self::None => None,
@@ -663,15 +665,15 @@ impl<'a> DatumRefV2<'a> {
         matches!(self, Self::None)
     }
 
-    pub fn to_owned(self) -> DatumV2 {
+    pub fn to_owned(self) -> Datum {
         match self {
-            Self::None => DatumV2::None,
-            Self::Some(s) => DatumV2::Some(s.into_scalar_impl()),
+            Self::None => Datum::None,
+            Self::Some(s) => Datum::Some(s.into_scalar_impl()),
         }
     }
 }
 
-impl<'a> From<Option<ScalarRefImpl<'a>>> for DatumRefV2<'a> {
+impl<'a> From<Option<ScalarRefImpl<'a>>> for DatumRef<'a> {
     fn from(s: Option<ScalarRefImpl<'a>>) -> Self {
         match s {
             None => Self::None,
@@ -680,7 +682,7 @@ impl<'a> From<Option<ScalarRefImpl<'a>>> for DatumRefV2<'a> {
     }
 }
 
-impl<'a> From<ScalarRefImpl<'a>> for DatumRefV2<'a> {
+impl<'a> From<ScalarRefImpl<'a>> for DatumRef<'a> {
     fn from(s: ScalarRefImpl<'a>) -> Self {
         Self::Some(s)
     }
@@ -695,7 +697,7 @@ pub trait ToOwnedDatum {
 impl ToOwnedDatum for DatumRef<'_> {
     #[inline(always)]
     fn to_owned_datum(self) -> Datum {
-        self.map(ScalarRefImpl::into_scalar_impl)
+        self.to_owned()
     }
 }
 
@@ -707,19 +709,19 @@ pub trait ToDatumRef: PartialEq + Eq + Debug {
 impl ToDatumRef for Datum {
     #[inline(always)]
     fn to_datum_ref(&self) -> DatumRef<'_> {
-        self.as_ref().map(|d| d.as_scalar_ref_impl())
+        self.as_ref()
     }
 }
 impl ToDatumRef for &Datum {
     #[inline(always)]
     fn to_datum_ref(&self) -> DatumRef<'_> {
-        self.as_ref().map(|d| d.as_scalar_ref_impl())
+        self.as_ref()
     }
 }
 impl ToDatumRef for Option<&ScalarImpl> {
     #[inline(always)]
     fn to_datum_ref(&self) -> DatumRef<'_> {
-        self.map(|d| d.as_scalar_ref_impl())
+        self.map(|d| d.as_scalar_ref_impl()).into()
     }
 }
 impl ToDatumRef for DatumRef<'_> {
@@ -771,14 +773,14 @@ macro_rules! impl_convert {
                 }
             }
 
-            impl From<$scalar> for DatumV2 {
+            impl From<$scalar> for Datum {
                 fn from(val: $scalar) -> Self {
                     let val: ScalarImpl = val.into();
                     val.into()
                 }
             }
 
-            impl From<Option<$scalar>> for DatumV2 {
+            impl From<Option<$scalar>> for Datum {
                 fn from(val: Option<$scalar>) -> Self {
                     match val {
                         None => Self::None,
@@ -804,14 +806,14 @@ macro_rules! impl_convert {
                 }
             }
 
-            impl <'scalar> From<$scalar_ref> for DatumRefV2<'scalar> {
+            impl <'scalar> From<$scalar_ref> for DatumRef<'scalar> {
                 fn from(val: $scalar_ref) -> Self {
                     let val: ScalarRefImpl<'_> = val.into();
                     val.into()
                 }
             }
 
-            impl <'scalar> From<Option<$scalar_ref>> for DatumRefV2<'scalar> {
+            impl <'scalar> From<Option<$scalar_ref>> for DatumRef<'scalar> {
                 fn from(val: Option<$scalar_ref>) -> Self {
                     match val {
                         None => Self::None,
@@ -881,6 +883,28 @@ impl From<&String> for ScalarImpl {
         Self::Utf8(s.as_str().into())
     }
 }
+
+macro_rules! into_datum {
+    ($( $typ:ty ),*) => {
+        $(
+            impl From<$typ> for Datum {
+                fn from(value: $typ) -> Self {
+                    Self::Some(value.into())
+                }
+            }
+
+            impl From<Option<$typ>> for Datum {
+                fn from(value: Option<$typ>) -> Self {
+                    match value {
+                        None => Self::None,
+                        Some(value) => Self::Some(value.into()),
+                    }
+                }
+            }
+        )*
+    }
+}
+into_datum!(f32, f64, String, &str, &String);
 
 impl ScalarImpl {
     pub fn from_binary(bytes: &Bytes, data_type: &DataType) -> RwResult<Self> {
@@ -1061,7 +1085,7 @@ impl ScalarImpl {
                 }
                 let mut values = vec![];
                 for s in str[1..str.len() - 1].split(',') {
-                    values.push(Some(Self::from_text(s.trim().as_bytes(), datatype)?));
+                    values.push(Datum::Some(Self::from_text(s.trim().as_bytes(), datatype)?));
                 }
                 Self::List(ListValue::new(values))
             }
@@ -1074,7 +1098,7 @@ impl ScalarImpl {
                 }
                 let mut fields = Vec::with_capacity(s.fields.len());
                 for (s, ty) in str[1..str.len() - 1].split(',').zip_eq_debug(&s.fields) {
-                    fields.push(Some(Self::from_text(s.trim().as_bytes(), ty)?));
+                    fields.push(Datum::Some(Self::from_text(s.trim().as_bytes(), ty)?));
                 }
                 ScalarImpl::Struct(StructValue::new(fields))
             }
@@ -1152,8 +1176,8 @@ for_all_scalar_variants! { scalar_impl_hash }
 #[inline(always)]
 pub fn hash_datum(datum: impl ToDatumRef, state: &mut impl std::hash::Hasher) {
     match datum.to_datum_ref() {
-        Some(scalar_ref) => scalar_ref.hash(state),
-        None => NULL_VAL_FOR_HASH.hash(state),
+        DatumRef::Some(scalar_ref) => scalar_ref.hash(state),
+        DatumRef::None => NULL_VAL_FOR_HASH.hash(state),
     }
 }
 
@@ -1364,7 +1388,7 @@ mod tests {
     #[test]
     fn test_hash_implementation() {
         fn test(datum: Datum, data_type: DataType) {
-            assert!(literal_type_match(&data_type, datum.as_ref()));
+            assert!(literal_type_match(&data_type, datum.as_option()));
 
             let mut builder = data_type.create_array_builder(6);
             for _ in 0..3 {
@@ -1460,8 +1484,8 @@ mod tests {
                 ),
             };
 
-            test(Some(scalar), data_type.clone());
-            test(None, data_type);
+            test(Datum::Some(scalar), data_type.clone());
+            test(Datum::None, data_type);
         }
     }
 

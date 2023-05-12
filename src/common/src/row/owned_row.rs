@@ -63,7 +63,7 @@ impl OwnedRow {
 
     /// Parse an [`OwnedRow`] from a pretty string, only used in tests.
     pub fn from_pretty_with_tys(tys: &[DataType], s: impl AsRef<str>) -> Self {
-        let datums: Vec<_> = tys
+        let datums = tys
             .iter()
             .zip_eq_debug(s.as_ref().split_ascii_whitespace())
             .map(|(ty, x)| {
@@ -82,7 +82,7 @@ impl OwnedRow {
                     DataType::Decimal => x.parse::<Decimal>().unwrap().into(),
                     _ => todo!(),
                 };
-                Some(scalar)
+                Datum::Some(scalar)
             })
             .collect();
         Self::new(datums)
@@ -171,15 +171,15 @@ mod tests {
     #[test]
     fn row_value_encode_decode() {
         let row = OwnedRow::new(vec![
-            Some(ScalarImpl::Utf8("string".into())),
-            Some(ScalarImpl::Bool(true)),
-            Some(ScalarImpl::Int16(1)),
-            Some(ScalarImpl::Int32(2)),
-            Some(ScalarImpl::Int64(3)),
-            Some(ScalarImpl::Float32(4.0.into())),
-            Some(ScalarImpl::Float64(5.0.into())),
-            Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
-            Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
+            Datum::Some(ScalarImpl::Utf8("string".into())),
+            Datum::Some(ScalarImpl::Bool(true)),
+            Datum::Some(ScalarImpl::Int16(1)),
+            Datum::Some(ScalarImpl::Int32(2)),
+            Datum::Some(ScalarImpl::Int64(3)),
+            Datum::Some(ScalarImpl::Float32(4.0.into())),
+            Datum::Some(ScalarImpl::Float64(5.0.into())),
+            Datum::Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
+            Datum::Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
         ]);
         let value_indices = (0..9).collect_vec();
         let bytes = (&row).project(&value_indices).value_serialize();
@@ -204,26 +204,26 @@ mod tests {
         let hash_builder = Crc32FastBuilder;
 
         let row1 = OwnedRow::new(vec![
-            Some(ScalarImpl::Utf8("string".into())),
-            Some(ScalarImpl::Bool(true)),
-            Some(ScalarImpl::Int16(1)),
-            Some(ScalarImpl::Int32(2)),
-            Some(ScalarImpl::Int64(3)),
-            Some(ScalarImpl::Float32(4.0.into())),
-            Some(ScalarImpl::Float64(5.0.into())),
-            Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
-            Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
+            Datum::Some(ScalarImpl::Utf8("string".into())),
+            Datum::Some(ScalarImpl::Bool(true)),
+            Datum::Some(ScalarImpl::Int16(1)),
+            Datum::Some(ScalarImpl::Int32(2)),
+            Datum::Some(ScalarImpl::Int64(3)),
+            Datum::Some(ScalarImpl::Float32(4.0.into())),
+            Datum::Some(ScalarImpl::Float64(5.0.into())),
+            Datum::Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
+            Datum::Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
         ]);
         let row2 = OwnedRow::new(vec![
-            Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
-            Some(ScalarImpl::Utf8("string".into())),
-            Some(ScalarImpl::Bool(true)),
-            Some(ScalarImpl::Int16(1)),
-            Some(ScalarImpl::Int32(2)),
-            Some(ScalarImpl::Int64(3)),
-            Some(ScalarImpl::Float32(4.0.into())),
-            Some(ScalarImpl::Float64(5.0.into())),
-            Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
+            Datum::Some(ScalarImpl::Interval(Interval::from_month_day_usec(7, 8, 9))),
+            Datum::Some(ScalarImpl::Utf8("string".into())),
+            Datum::Some(ScalarImpl::Bool(true)),
+            Datum::Some(ScalarImpl::Int16(1)),
+            Datum::Some(ScalarImpl::Int32(2)),
+            Datum::Some(ScalarImpl::Int64(3)),
+            Datum::Some(ScalarImpl::Float32(4.0.into())),
+            Datum::Some(ScalarImpl::Float64(5.0.into())),
+            Datum::Some(ScalarImpl::Decimal("-233.3".parse().unwrap())),
         ]);
         assert_ne!(row1.hash(hash_builder), row2.hash(hash_builder));
 
