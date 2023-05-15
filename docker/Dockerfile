@@ -34,6 +34,12 @@ RUN rustup self update \
 
 RUN cargo fetch
 
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install openjdk-11-jdk
+
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+
+ENV LD_LIBRARY_PATH ${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH}
+
 RUN cargo build -p risingwave_cmd_all -p risingwave_java_binding --release --features "static-link static-log-level" && \
   mkdir -p /risingwave/bin && mv /risingwave/target/release/risingwave /risingwave/bin/ && \
   mkdir -p /risingwave/lib && mv /risingwave/target/release/librisingwave_java_binding.so /risingwave/lib && \
