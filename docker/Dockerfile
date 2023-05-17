@@ -2,7 +2,7 @@ FROM ubuntu:22.04 as base
 
 ENV LANG en_US.utf8
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install make build-essential cmake protobuf-compiler curl pkg-config bash lld maven unzip wget
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install make build-essential cmake protobuf-compiler curl pkg-config bash lld maven unzip wget openjdk-11-jdk
 
 FROM base as builder
 
@@ -35,19 +35,8 @@ RUN rustup self update \
 RUN cargo fetch
 
 # java home for hdrs
-RUN DEBIAN_FRONTEND=noninteractive apt-get -y install openjdk-11-jdk
-RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> ~/.bashrc
-RUN echo export LD_LIBRARY_PATH=${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH} >> ~/.bashrc
-
-# hadoop
-COPY ../hadoop-2.7.3.tar.gz ~
-RUN tar -zxvf hadoop-2.7.3.tar.gz -C /opt/
-RUN mv /opt/hadoop-2.7.3 /opt/hadoop
-RUN echo export HADOOP_HOME=/opt/hadoop/ >> ~/.bashrc
-RUN echo export PATH=$PATH:$HADOOP_HOME/bin >> ~/.bashrc
-RUN echo export PATH=$PATH:$HADOOP_HOME/sbin >> ~/.bashrc
-RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/yarn-env.sh
-RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/hadoop-env.sh
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64 
+ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-amd64/lib/server
 
 RUN cargo build -p risingwave_cmd_all -p risingwave_java_binding --release --features "static-link static-log-level" && \
   mkdir -p /risingwave/bin && mv /risingwave/target/release/risingwave /risingwave/bin/ && \
@@ -59,7 +48,7 @@ RUN cd /risingwave/java && mvn -B package -Dmaven.test.skip=true && \
     tar -zxvf /risingwave/java/connector-node/assembly/target/risingwave-connector-1.0.0.tar.gz -C /risingwave/bin/connector-node
 
 FROM ubuntu:22.04 as image-base
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install ca-certificates openjdk-11-jdk && rm -rf /var/lib/{apt,dpkg,cache,log}/
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install ca-certificates openjdk-11-jdk wget && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 FROM image-base as risingwave
 LABEL org.opencontainers.image.source https://github.com/risingwavelabs/risingwave
@@ -68,6 +57,23 @@ COPY --from=builder /risingwave/bin/risingwave /risingwave/bin/risingwave
 COPY --from=builder /risingwave/bin/connector-node /risingwave/bin/connector-node
 COPY --from=builder /risingwave/ui /risingwave/ui
 COPY --from=builder /risingwave/lib/librisingwave_java_binding.so /risingwave/lib/librisingwave_java_binding.so
+
+# hadoop
+RUN wget https://rw-yufan.s3.ap-southeast-1.amazonaws.com/hadoop-2.7.3.tar.gz -P /root/
+COPY ./hadoop-2.7.3.tar.gz /root
+RUN tar -zxvf /root/hadoop-2.7.3.tar.gz -C /opt/
+RUN mv /opt/hadoop-2.7.3 /opt/hadoop
+RUN echo export HADOOP_HOME=/opt/hadoop/ >> ~/.bashrc
+RUN echo export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin >> ~/.bashrc
+RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/yarn-env.sh
+RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/hadoop-env.sh
+RUN rm -rf ~/hadoop-2.7.3.tar.gz
+# java
+ENV HADOOP_HOME /opt/hadoop/
+ENV PATH $PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64 
+ENV LD_LIBRARY_PATH ${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH}
+
 # Set java.library.path env to /risingwave/lib
 ENV RW_JAVA_BINDING_LIB_PATH /risingwave/lib
 # Set default playground mode to docker-playground profile
@@ -76,3 +82,4 @@ ENV PLAYGROUND_PROFILE docker-playground
 ENV RW_DASHBOARD_UI_PATH /risingwave/ui
 ENTRYPOINT [ "/risingwave/bin/risingwave" ]
 CMD [ "playground" ]
+# docker build -f docker/Dockerfile --build-arg "GIT_SHA=f21e5cd54d23c0c5d565992c51350af38c56037e-2" -t "ghcr.io/risingwavelabs/risingwave:f21e5cd54d23c0c5d565992c51350af38c56037e-3-x86_64" --target risingwave . 
