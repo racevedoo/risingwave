@@ -35,9 +35,9 @@ RUN rustup self update \
 RUN cargo fetch
 
 # java home for hdrs
-ARG ARCH
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-${ARCH}
-ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-${ARCH}/lib/server:${LD_LIBRARY_PATH}
+ARG JAVA_HOME_PATH
+ENV JAVA_HOME ${JAVA_HOME_PATH}
+ENV LD_LIBRARY_PATH ${JAVA_HOME_PATH}/lib/server:${LD_LIBRARY_PATH}
 
 RUN cargo build -p risingwave_cmd_all -p risingwave_java_binding --release --features "static-link static-log-level" && \
   mkdir -p /risingwave/bin && mv /risingwave/target/release/risingwave /risingwave/bin/ && \
@@ -71,9 +71,9 @@ RUN rm -rf ~/hadoop-2.7.3.tar.gz
 # java
 ENV HADOOP_HOME /opt/hadoop/
 ENV PATH $PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-ARG ARCH
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-${ARCH}
-ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-${ARCH}/lib/server:${LD_LIBRARY_PATH}
+ARG JAVA_HOME_PATH
+ENV JAVA_HOME ${JAVA_HOME_PATH}
+ENV LD_LIBRARY_PATH ${JAVA_HOME_PATH}/lib/server:${LD_LIBRARY_PATH}
 
 # Set java.library.path env to /risingwave/lib
 ENV RW_JAVA_BINDING_LIB_PATH /risingwave/lib
