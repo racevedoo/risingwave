@@ -60,7 +60,6 @@ COPY --from=builder /risingwave/lib/librisingwave_java_binding.so /risingwave/li
 
 # hadoop
 RUN wget https://rw-yufan.s3.ap-southeast-1.amazonaws.com/hadoop-2.7.3.tar.gz -P /root/
-COPY ./hadoop-2.7.3.tar.gz /root
 RUN tar -zxvf /root/hadoop-2.7.3.tar.gz -C /opt/
 RUN mv /opt/hadoop-2.7.3 /opt/hadoop
 RUN echo export HADOOP_HOME=/opt/hadoop/ >> ~/.bashrc
