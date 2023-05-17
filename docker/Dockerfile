@@ -35,8 +35,8 @@ RUN rustup self update \
 RUN cargo fetch
 
 # java home for hdrs
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64 
-ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-amd64/lib/server
+RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> ~/.bashrc
+RUN echo export LD_LIBRARY_PATH=$(readlink -f $(which java))/lib/server:${LD_LIBRARY_PATH} >> ~/.bashrc
 
 RUN cargo build -p risingwave_cmd_all -p risingwave_java_binding --release --features "static-link static-log-level" && \
   mkdir -p /risingwave/bin && mv /risingwave/target/release/risingwave /risingwave/bin/ && \
@@ -64,14 +64,14 @@ RUN tar -zxvf /root/hadoop-2.7.3.tar.gz -C /opt/
 RUN mv /opt/hadoop-2.7.3 /opt/hadoop
 RUN echo export HADOOP_HOME=/opt/hadoop/ >> ~/.bashrc
 RUN echo export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin >> ~/.bashrc
-RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/yarn-env.sh
-RUN echo export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 >> /opt/hadoop/etc/hadoop/hadoop-env.sh
+RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> /opt/hadoop/etc/hadoop/yarn-env.sh
+RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> /opt/hadoop/etc/hadoop/hadoop-env.sh
 RUN rm -rf ~/hadoop-2.7.3.tar.gz
 # java
 ENV HADOOP_HOME /opt/hadoop/
 ENV PATH $PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64 
-ENV LD_LIBRARY_PATH ${JAVA_HOME}/lib/server:${LD_LIBRARY_PATH}
+RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> ~/.bashrc
+RUN echo export LD_LIBRARY_PATH=$(readlink -f $(which java))/lib/server:${LD_LIBRARY_PATH} >> ~/.bashrc
 
 # Set java.library.path env to /risingwave/lib
 ENV RW_JAVA_BINDING_LIB_PATH /risingwave/lib
