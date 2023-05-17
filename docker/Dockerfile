@@ -35,8 +35,9 @@ RUN rustup self update \
 RUN cargo fetch
 
 # java home for hdrs
-RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> ~/.bashrc
-RUN echo export LD_LIBRARY_PATH=$(readlink -f $(which java))/lib/server:${LD_LIBRARY_PATH} >> ~/.bashrc
+ARG ARCH
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-${ARCH}
+ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-${ARCH}/lib/server:${LD_LIBRARY_PATH}
 
 RUN cargo build -p risingwave_cmd_all -p risingwave_java_binding --release --features "static-link static-log-level" && \
   mkdir -p /risingwave/bin && mv /risingwave/target/release/risingwave /risingwave/bin/ && \
@@ -70,8 +71,9 @@ RUN rm -rf ~/hadoop-2.7.3.tar.gz
 # java
 ENV HADOOP_HOME /opt/hadoop/
 ENV PATH $PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-RUN echo export JAVA_HOME=$(readlink -f $(which java)) >> ~/.bashrc
-RUN echo export LD_LIBRARY_PATH=$(readlink -f $(which java))/lib/server:${LD_LIBRARY_PATH} >> ~/.bashrc
+ARG ARCH
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-${ARCH}
+ENV LD_LIBRARY_PATH /usr/lib/jvm/java-11-openjdk-${ARCH}/lib/server:${LD_LIBRARY_PATH}
 
 # Set java.library.path env to /risingwave/lib
 ENV RW_JAVA_BINDING_LIB_PATH /risingwave/lib
@@ -81,4 +83,3 @@ ENV PLAYGROUND_PROFILE docker-playground
 ENV RW_DASHBOARD_UI_PATH /risingwave/ui
 ENTRYPOINT [ "/risingwave/bin/risingwave" ]
 CMD [ "playground" ]
-# docker build -f docker/Dockerfile --build-arg "GIT_SHA=f21e5cd54d23c0c5d565992c51350af38c56037e-2" -t "ghcr.io/risingwavelabs/risingwave:f21e5cd54d23c0c5d565992c51350af38c56037e-3-x86_64" --target risingwave . 
