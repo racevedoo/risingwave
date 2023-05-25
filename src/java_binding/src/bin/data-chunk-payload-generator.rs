@@ -45,7 +45,7 @@ fn build_row(index: usize) -> OwnedRow {
 }
 
 fn main() {
-    let row_count = 30000;
+    let row_count = 500000;
     let data_types = vec![
         DataType::Int16,
         DataType::Int32,

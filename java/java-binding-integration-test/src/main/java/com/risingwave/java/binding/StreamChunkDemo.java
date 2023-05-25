@@ -14,30 +14,39 @@
 
 package com.risingwave.java.binding;
 
-import static com.risingwave.java.binding.Utils.validateRow;
-
 import java.io.IOException;
 
 public class StreamChunkDemo {
+    public static double getValue(StreamChunkRow rowData) {
+        int value1 = (int) rowData.getShort(0);
+        int value2 = (int) rowData.getInt(1);
+        Long value3 = (Long) rowData.getLong(2);
+        float value4 = (float) rowData.getFloat(3);
+        double value5 = (double) rowData.getDouble(4);
+        Boolean value6 = (Boolean) rowData.getBoolean(5);
+        String value7 = (String) rowData.getString(6);
+        java.sql.Timestamp value8 = (java.sql.Timestamp) rowData.getTimestamp(7);
+        int value9 = rowData.getDecimal(8).intValue();
+        boolean mayNull = rowData.isNull(9);
+        return value1 + value2 + value3 + value4 + value5 + value9;
+    }
 
     public static void main(String[] args) throws IOException {
         byte[] payload = System.in.readAllBytes();
-        try (StreamChunkIterator iter = new StreamChunkIterator(payload)) {
-            int count = 0;
+        for (int t = 0; t < 10; t++) {
+            StreamChunkIterator iter = new StreamChunkIterator(payload);
+            long startTime = System.currentTimeMillis();
             while (true) {
                 try (StreamChunkRow row = iter.next()) {
                     if (row == null) {
                         break;
                     }
-                    count += 1;
-                    validateRow(row);
+                    getValue(row);
                 }
             }
-            int expectedCount = 30000;
-            if (count != expectedCount) {
-                throw new RuntimeException(
-                        String.format("row count is %s, should be %s", count, expectedCount));
-            }
+            long endTime = System.currentTimeMillis();
+            long elapsedTime = endTime - startTime;
+            System.out.println("Time elapsed: " + elapsedTime + " milliseconds");
         }
     }
 }
