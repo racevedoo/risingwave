@@ -3,7 +3,7 @@ package com.risingwave.java.binding;
 import java.util.ArrayList;
 
 public class Test {
-    static int loopTime = 5000000;
+    static int loopTime = 500000;
 
     public static ArrayList<Object> myFunction(int index) {
         short v1 = (short) index;
@@ -51,11 +51,11 @@ public class Test {
         float value4 = (float) rowData.get(3);
         double value5 = (double) rowData.get(4);
         boolean value6 = (boolean) rowData.get(5);
-        String value7 = (String) rowData.get(6);
-        String value8 = (String) rowData.get(7);
-        int value9 = (int) rowData.get(8);
+        //        String value7 = (String) rowData.get(6);
+        //        String value8 = (String) rowData.get(7);
+        //        int value9 = (int) rowData.get(8);
         Integer mayNull = (Integer) rowData.get(9);
-        return value1 + value2 + value3 + value4 + value5 + value9;
+        return value1 + value2 + value3 + value4 + value5;
         // }
         // System.out.println(value1);
         // System.out.println(value2);

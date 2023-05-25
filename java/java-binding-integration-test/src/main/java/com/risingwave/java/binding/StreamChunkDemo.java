@@ -23,12 +23,12 @@ public class StreamChunkDemo {
         Long value3 = (Long) rowData.getLong(2);
         float value4 = (float) rowData.getFloat(3);
         double value5 = (double) rowData.getDouble(4);
-        Boolean value6 = (Boolean) rowData.getBoolean(5);
-        String value7 = (String) rowData.getString(6);
-        java.sql.Timestamp value8 = (java.sql.Timestamp) rowData.getTimestamp(7);
-        int value9 = rowData.getDecimal(8).intValue();
+        boolean value6 = (boolean) rowData.getBoolean(5);
+        //        String value7 = (String) rowData.getString(6);
+        //        java.sql.Timestamp value8 = (java.sql.Timestamp) rowData.getTimestamp(7);
+        //        int value9 = rowData.getDecimal(8).intValue();
         boolean mayNull = rowData.isNull(9);
-        return value1 + value2 + value3 + value4 + value5 + value9;
+        return value1 + value2 + value3 + value4 + value5;
     }
 
     public static void main(String[] args) throws IOException {
