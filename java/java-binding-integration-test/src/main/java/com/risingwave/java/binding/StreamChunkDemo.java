@@ -18,7 +18,7 @@ import java.io.IOException;
 
 public class StreamChunkDemo {
     public static double getValue(StreamChunkRow rowData) {
-        int value1 = (int) rowData.getShort(0);
+        short value1 = (short) rowData.getShort(0);
         int value2 = (int) rowData.getInt(1);
         Long value3 = (Long) rowData.getLong(2);
         float value4 = (float) rowData.getFloat(3);
