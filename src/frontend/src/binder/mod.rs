@@ -124,14 +124,14 @@ pub struct Binder {
 /// 3. When the binder encounters a cast on parameter, if it's a unknown type, the cast function
 /// will record the target type as infer type for that parameter(call `record_infer_type`). If the
 /// parameter has been inferred, the cast function will act as a normal cast.
-/// 4. After bind finished: (a) parameter not in `ParameterTypes` means that the user didn't specify
-///    it and it didn't
-/// occur in the query. `export` will return error if there is a kind of
-/// parameter. This rule is compatible with PostgreSQL
-///     (b) parameter is None means that it's a unknown type. The user didn't specify it
-/// and we can't infer it in the query. We will treat it as VARCHAR type finally. This rule is
-/// compatible with PostgreSQL.
-///     (c) parameter is Some means that it's a known type.
+/// 4. After bind finished:
+///    1) parameter not in `ParameterTypes` means that the user didn't specify it and it didn't
+///       occur in the query. `export` will return error if there is a kind of parameter. This rule
+///       is compatible with PostgreSQL
+///    2) parameter is None means that it's a unknown type. The user didn't specify it and we can't
+///       infer it in the query. We will treat it as VARCHAR type finally. This rule is compatible
+///       with PostgreSQL.
+///    3) parameter is Some means that it's a known type.
 #[derive(Clone, Debug)]
 pub struct ParameterTypes(Arc<RwLock<HashMap<u64, Option<DataType>>>>);
 
