@@ -145,9 +145,8 @@ pub(crate) struct SqlGenerator<'a, R: Rng> {
 
     /// SqlGenerator can be used in two execution modes:
     /// 1. Generating Query Statements.
-    /// 2. Generating queries for CREATE MATERIALIZED VIEW.
-    ///    Under this mode certain restrictions and workarounds are applied
-    ///    for unsupported stream executors.
+    /// 2. Generating queries for CREATE MATERIALIZED VIEW. Under this mode certain restrictions
+    ///    and workarounds are applied for unsupported stream executors.
     is_mview: bool,
 
     recursion_weight: f64,

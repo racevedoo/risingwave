@@ -14,10 +14,9 @@
 //! 1) a list of constants for every keyword that
 //! can appear in [crate::tokenizer::Word::keyword]:
 //!    pub const KEYWORD = "KEYWORD"
-//! 2) an `ALL_KEYWORDS` array with every keyword in it
-//!     This is not a list of *reserved* keywords: some of these can be
-//!     parsed as identifiers if the parser decides so. This means that
-//!     new keywords can be added here without affecting the parse result.
+//! 2) an `ALL_KEYWORDS` array with every keyword in it This is not a list of *reserved* keywords:
+//!    some of these can be parsed as identifiers if the parser decides so. This means that new
+//!    keywords can be added here without affecting the parse result.
 //!
 //!     As a matter of fact, most of these keywords are not used at all
 //!     and could be removed.

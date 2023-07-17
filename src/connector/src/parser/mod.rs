@@ -566,10 +566,10 @@ pub struct ParserProperties {
 
 /// Requirements of each parser currently
 /// 1. CSV: delimiter, has header
-/// 2. AVRO/AVRO UPSERT: row schema location, use schema registry
-///    client info, topic, aws config, optional primary key
-/// 3. PROTOBUF: message name, row schema location, use schema registry
-///    client info, topic, aws config
+/// 2. AVRO/AVRO UPSERT: row schema location, use schema registry client info, topic, aws config,
+///    optional primary key
+/// 3. PROTOBUF: message name, row schema location, use schema registry client info, topic, aws
+///    config
 /// 4. DEBEZIUM AVRO: row schema location, topic, client info
 /// 5. Other: none
 

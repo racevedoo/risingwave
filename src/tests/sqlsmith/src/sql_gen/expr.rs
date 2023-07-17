@@ -29,11 +29,11 @@ static STRUCT_FIELD_NAMES: [&str; 26] = [
 
 impl<'a, R: Rng> SqlGenerator<'a, R> {
     /// In generating expression, there are two execution modes:
-    /// 1) Can have Aggregate expressions (`can_agg` = true)
-    ///    We can have aggregate of all bound columns (those present in GROUP BY and otherwise).
-    ///    Not all GROUP BY columns need to be aggregated.
-    /// 2) Can't have Aggregate expressions (`can_agg` = false)
-    ///    Only columns present in GROUP BY can be selected.
+    /// 1) Can have Aggregate expressions (`can_agg` = true) We can have aggregate of all bound
+    ///    columns (those present in GROUP BY and otherwise). Not all GROUP BY columns need to be
+    ///    aggregated.
+    /// 2) Can't have Aggregate expressions (`can_agg` = false) Only columns present in GROUP BY can
+    ///    be selected.
     ///
     /// `inside_agg` indicates if we are calling `gen_expr` inside an aggregate.
     pub(crate) fn gen_expr(&mut self, typ: &DataType, context: SqlGeneratorContext) -> Expr {

@@ -267,12 +267,12 @@ impl HummockReadVersion {
                 StagingData::Sst(staging_sst) => {
                     // The following properties must be ensured:
                     // 1) self.staging.imm is sorted by imm id descendingly
-                    // 2) staging_sst.imm_ids preserves the imm id partial
-                    //    ordering of the participating read version imms. Example:
-                    //    If staging_sst contains two read versions r1: [i1, i3] and  r2: [i2, i4],
-                    //    then [i2, i1, i3, i4] is valid while [i3, i1, i2, i4] is invalid.
-                    // 3) The intersection between staging_sst.imm_ids and self.staging.imm
-                    //    are always the suffix of self.staging.imm
+                    // 2) staging_sst.imm_ids preserves the imm id partial ordering of the
+                    //    participating read version imms. Example: If staging_sst contains two read
+                    //    versions r1: [i1, i3] and  r2: [i2, i4], then [i2, i1, i3, i4] is valid
+                    //    while [i3, i1, i2, i4] is invalid.
+                    // 3) The intersection between staging_sst.imm_ids and self.staging.imm are
+                    //    always the suffix of self.staging.imm
 
                     // Check 1)
                     debug_assert!(self

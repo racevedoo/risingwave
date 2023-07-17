@@ -147,7 +147,8 @@ impl ExprRewriter for LikeExprRewriter {
             (None, Some(idx)) => idx,
             (None, None) => {
                 let Ok(unescaped_y) = String::from_utf8(unescaped_bytes) else {
-                    // FIXME: We should definitely treat the argument as UTF-8 string instead of bytes, but currently, we just fallback here.
+                    // FIXME: We should definitely treat the argument as UTF-8 string instead of
+                    // bytes, but currently, we just fallback here.
                     return func_call.into();
                 };
                 let inputs = vec![

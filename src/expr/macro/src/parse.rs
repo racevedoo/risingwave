@@ -91,7 +91,9 @@ impl UserFunctionAttr {
 
 /// Check if the last argument is `&mut dyn Write`.
 fn last_arg_is_write(item: &syn::ItemFn) -> bool {
-    let Some(syn::FnArg::Typed(arg)) = item.sig.inputs.last() else { return false };
+    let Some(syn::FnArg::Typed(arg)) = item.sig.inputs.last() else {
+        return false;
+    };
     let syn::Type::Reference(syn::TypeReference { elem, .. }) = arg.ty.as_ref() else {
         return false;
     };
@@ -110,9 +112,15 @@ fn args_are_all_option(item: &syn::ItemFn) -> bool {
         return false;
     }
     for arg in &item.sig.inputs {
-        let syn::FnArg::Typed(arg) = arg else { return false };
-        let syn::Type::Path(path) = arg.ty.as_ref() else { return false };
-        let Some(seg) = path.path.segments.last() else { return false };
+        let syn::FnArg::Typed(arg) = arg else {
+            return false;
+        };
+        let syn::Type::Path(path) = arg.ty.as_ref() else {
+            return false;
+        };
+        let Some(seg) = path.path.segments.last() else {
+            return false;
+        };
         if seg.ident != "Option" {
             return false;
         }
@@ -139,20 +147,32 @@ fn check_type(ty: &syn::Type) -> (ReturnType, &syn::Type) {
 
 /// Check if the type is `type_<T>` and return `T`.
 fn strip_outer_type<'a>(ty: &'a syn::Type, type_: &str) -> Option<&'a syn::Type> {
-    let syn::Type::Path(path) = ty else { return None };
-    let Some(seg) = path.path.segments.last() else { return None };
+    let syn::Type::Path(path) = ty else {
+        return None;
+    };
+    let Some(seg) = path.path.segments.last() else {
+        return None;
+    };
     if seg.ident != type_ {
         return None;
     }
-    let syn::PathArguments::AngleBracketed(args) = &seg.arguments else { return None };
-    let Some(syn::GenericArgument::Type(ty)) = args.args.first() else { return None };
+    let syn::PathArguments::AngleBracketed(args) = &seg.arguments else {
+        return None;
+    };
+    let Some(syn::GenericArgument::Type(ty)) = args.args.first() else {
+        return None;
+    };
     Some(ty)
 }
 
 /// Check if the type is `impl Iterator<Item = T>` and return `T`.
 fn strip_iterator(ty: &syn::Type) -> Option<&syn::Type> {
-    let syn::Type::ImplTrait(impl_trait) = ty else { return None; };
-    let syn::TypeParamBound::Trait(trait_bound) = impl_trait.bounds.first()? else { return None; };
+    let syn::Type::ImplTrait(impl_trait) = ty else {
+        return None;
+    };
+    let syn::TypeParamBound::Trait(trait_bound) = impl_trait.bounds.first()? else {
+        return None;
+    };
     let segment = trait_bound.path.segments.last().unwrap();
     if segment.ident != "Iterator" {
         return None;
@@ -171,11 +191,15 @@ fn strip_iterator(ty: &syn::Type) -> Option<&syn::Type> {
 /// Find argument `#[xxx(.., name = "value")]`.
 fn find_argument(attr: &syn::AttributeArgs, name: &str) -> Option<String> {
     attr.iter().find_map(|n| {
-        let syn::NestedMeta::Meta(syn::Meta::NameValue(nv)) = n else { return None };
+        let syn::NestedMeta::Meta(syn::Meta::NameValue(nv)) = n else {
+            return None;
+        };
         if !nv.path.is_ident(name) {
             return None;
         }
-        let syn::Lit::Str(ref lit_str) = nv.lit else { return None };
+        let syn::Lit::Str(ref lit_str) = nv.lit else {
+            return None;
+        };
         Some(lit_str.value())
     })
 }

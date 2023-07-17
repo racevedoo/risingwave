@@ -407,9 +407,8 @@ pub(crate) async fn iter_chunks<'a, S, E>(
 /// Schema
 /// | vnode | pk | `backfill_finished` |
 /// Persists the state per vnode.
-/// 1. For each (`vnode`, `current_pos`),
-///    Either insert if no old state,
-///    Or update the state if have old state.
+/// 1. For each (`vnode`, `current_pos`), Either insert if no old state, Or update the state if have
+///    old state.
 pub(crate) async fn persist_state_per_vnode<S: StateStore, const IS_REPLICATED: bool>(
     epoch: EpochPair,
     table: &mut StateTableInner<S, BasicSerde, IS_REPLICATED>,

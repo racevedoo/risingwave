@@ -108,15 +108,13 @@ impl<I: HummockIterator<Direction = Backward>> BackwardUserIterator<I> {
     /// - if `Err(_) ` is returned, it means that some error happened.
     pub async fn next(&mut self) -> HummockResult<()> {
         // We need to deal with three cases:
-        // 1. current key == last key.
-        //    Since current key must have an epoch newer than the one of the last key,
-        //    we assign current kv as the new last kv and also inherit its status of deletion, and
+        // 1. current key == last key. Since current key must have an epoch newer than the one of
+        //    the last key, we assign current kv as the new last kv and also inherit its status of
+        //    deletion, and
         // continue.
         //
-        // 2. current key != last key.
-        //    We have to make a decision for the last key.
-        //    a. If it is not deleted, we stop.
-        //    b. Otherwise, we continue to find the next new key.
+        // 2. current key != last key. We have to make a decision for the last key. a. If it is not
+        //    deleted, we stop. b. Otherwise, we continue to find the next new key.
         //
         // 3. `self.iterator` invalid. The case is the same as 2. However, option b is invalid now.
         // We just stop. Without further `next`, `BackwardUserIterator` is still valid.

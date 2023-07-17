@@ -318,9 +318,9 @@ mod tests {
         };
         // f   3    .
         // t   3    .
-        // .   .    3.5
-        // .   .    -4.3
-        // .   .    .
+        // . .    3.5
+        // . .    -4.3
+        // . .    .
         let input_chunk = DataChunk::new(
             vec![
                 BoolArray::from_iter([Some(false), Some(true), None, None, None]).into_ref(),
@@ -329,9 +329,9 @@ mod tests {
             ],
             5,
         );
-        // .   .   -4.3
-        // .   .   3.5
-        // .   .   .
+        // . .   -4.3
+        // . .   3.5
+        // . .   .
         // f   3   .
         // t   3   .
         let output_chunk = DataChunk::new(
@@ -460,9 +460,9 @@ mod tests {
                 Field::unnamed(DataType::Interval),
             ],
         };
-        // .     1:23  .
+        // . 1:23  .
         // 4:56  4:56  1:2:3
-        // .     7:89  .
+        // . 7:89  .
         // 4:56  4:56  4:5:6
         // 7:89  .     .
         let input_chunk = DataChunk::new(
@@ -497,8 +497,8 @@ mod tests {
         // 4:56  4:56  4:5:6
         // 4:56  4:56  1:2:3
         // 7:89  .     .
-        // .     1:23  .
-        // .     7:89  .
+        // . 1:23  .
+        // . 7:89  .
         let output_chunk = DataChunk::new(
             vec![
                 TimeArray::from_iter([

@@ -464,11 +464,11 @@ where
     /// TODO(kwannoel): Support partially complete snapshot reads.
     /// That will require the following changes:
     /// Instead of returning stream chunk and vnode, we need to dispatch 3 diff messages:
-    /// 1. COMPLETE_VNODE(vnode): Current iterator is complete, in that case we need to handle it
-    ///    in arrangement backfill. We should not buffer updates for this vnode, and forward
-    ///    all messages.
-    /// 2. MESSAGE(CHUNK): Current iterator is not complete, in that case we
-    ///    need to buffer updates for this vnode.
+    /// 1. COMPLETE_VNODE(vnode): Current iterator is complete, in that case we need to handle it in
+    ///    arrangement backfill. We should not buffer updates for this vnode, and forward all
+    ///    messages.
+    /// 2. MESSAGE(CHUNK): Current iterator is not complete, in that case we need to buffer updates
+    ///    for this vnode.
     /// 3. FINISHED: All iterators finished.
     ///
     /// For now we only support the case where all iterators are complete.

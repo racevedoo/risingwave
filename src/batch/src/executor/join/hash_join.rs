@@ -44,8 +44,8 @@ use crate::task::{BatchTaskContext, ShutdownToken};
 ///
 /// High-level idea:
 /// 1. Iterate over the build side (i.e. right table) and build a hash map.
-/// 2. Iterate over the probe side (i.e. left table) and compute the hash value of each row.
-///    Then find the matched build side row for each probe side row in the hash map.
+/// 2. Iterate over the probe side (i.e. left table) and compute the hash value of each row. Then
+///    find the matched build side row for each probe side row in the hash map.
 /// 3. Concatenate the matched pair of probe side row and build side row into a single row and push
 /// it into the data chunk builder.
 /// 4. Yield chunks from the builder.
@@ -564,14 +564,12 @@ impl<K: HashKey> HashJoinExecutor<K> {
     }
 
     /// High-level idea:
-    /// 1. For each probe_row, append candidate rows to buffer.
-    ///    Candidate rows: Those satisfying equi_predicate (==).
-    /// 2. If buffer becomes full, process it.
-    ///    Apply non_equi_join predicates e.g. `>=`, `<=` to filter rows.
-    ///    Track if probe_row is matched to avoid duplicates.
-    /// 3. If we matched probe_row in spilled chunk,
-    ///    stop appending its candidate rows,
-    ///    to avoid matching it again in next spilled chunk.
+    /// 1. For each probe_row, append candidate rows to buffer. Candidate rows: Those satisfying
+    ///    equi_predicate (==).
+    /// 2. If buffer becomes full, process it. Apply non_equi_join predicates e.g. `>=`, `<=` to
+    ///    filter rows. Track if probe_row is matched to avoid duplicates.
+    /// 3. If we matched probe_row in spilled chunk, stop appending its candidate rows, to avoid
+    ///    matching it again in next spilled chunk.
     #[try_stream(boxed, ok = DataChunk, error = RwError)]
     pub async fn do_left_semi_join_with_non_equi_condition<'a>(
         EquiJoinParams {

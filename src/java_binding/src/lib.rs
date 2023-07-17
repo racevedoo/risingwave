@@ -627,7 +627,8 @@ pub extern "system" fn Java_com_risingwave_java_binding_Binding_rowGetDateValue<
             *constructor,
             ReturnType::Object,
             &[jvalue::from(JValue::from(string_value))],
-        )? else {
+        )?
+        else {
             return Err(BindingError::from(jni::errors::Error::MethodNotFound {
                 name: "valueOf".to_string(),
                 sig: "(Ljava/lang/String;)Ljava/sql/Date;".into(),
@@ -669,7 +670,8 @@ pub extern "system" fn Java_com_risingwave_java_binding_Binding_rowGetTimeValue<
             *constructor,
             ReturnType::Object,
             &[jvalue::from(JValue::from(string_value))],
-        )? else {
+        )?
+        else {
             return Err(BindingError::from(jni::errors::Error::MethodNotFound {
                 name: "valueOf".to_string(),
                 sig: "(Ljava/lang/String;)Ljava/sql/Time;".into(),

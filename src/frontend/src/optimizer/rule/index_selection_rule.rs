@@ -207,9 +207,7 @@ impl IndexSelectionRule {
         logical_scan: &LogicalScan,
         index: &IndexCatalog,
     ) -> (PlanRef, IndexCost) {
-        // 1. logical_scan ->  logical_join
-        //                      /        \
-        //                index_scan   primary_table_scan
+        // 1. logical_scan ->  logical_join /        \ index_scan   primary_table_scan
         let predicate = logical_scan.predicate().clone();
         let offset = index.index_item.len();
         let mut rewriter = IndexPredicateRewriter::new(

@@ -37,10 +37,9 @@ impl Debug for StructType {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct StructTypeInner {
     // Details about a struct type. There are 2 cases for a struct:
-    // 1. `field_names.len() == field_types.len()`: it represents a struct with named fields,
-    //     e.g. `STRUCT<i INT, j VARCHAR>`.
-    // 2. `field_names.len() == 0`: it represents a struct with unnamed fields,
-    //     e.g. `ROW(1, 2)`.
+    // 1. `field_names.len() == field_types.len()`: it represents a struct with named fields, e.g.
+    //    `STRUCT<i INT, j VARCHAR>`.
+    // 2. `field_names.len() == 0`: it represents a struct with unnamed fields, e.g. `ROW(1, 2)`.
     field_names: Box<[String]>,
     field_types: Box<[DataType]>,
 }

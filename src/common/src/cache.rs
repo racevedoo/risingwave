@@ -62,16 +62,13 @@ pub enum CachePriority {
 /// are also stored on LRU list.
 ///
 /// `LruHandle` can be in these states:
-/// 1. Referenced externally AND in hash table.
-///    In that case the entry is *not* in the LRU list
+/// 1. Referenced externally AND in hash table. In that case the entry is *not* in the LRU list
 ///    (`refs` >= 1 && `in_cache` == true)
-/// 2. Not referenced externally AND in hash table.
-///    In that case the entry is in the LRU list and can be freed.
-///    (`refs` == 0 && `in_cache` == true)
-/// 3. Referenced externally AND not in hash table.
-///    In that case the entry is not in the LRU list and not in hash table.
-///    The entry can be freed when refs becomes 0.
-///    (`refs` >= 1 && `in_cache` == false)
+/// 2. Not referenced externally AND in hash table. In that case the entry is in the LRU list and
+///    can be freed. (`refs` == 0 && `in_cache` == true)
+/// 3. Referenced externally AND not in hash table. In that case the entry is not in the LRU list
+///    and not in hash table. The entry can be freed when refs becomes 0. (`refs` >= 1 && `in_cache`
+///    == false)
 ///
 /// All newly created `LruHandle`s are in state 1. If you call
 /// `LruCacheShard::release` on entry in state 1, it will go into state 2.
