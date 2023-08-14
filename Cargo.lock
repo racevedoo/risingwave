@@ -9585,7 +9585,6 @@ dependencies = [
  "madsim-tokio",
  "memchr",
  "miniz_oxide",
- "multimap 0.9.0",
  "nix 0.26.2",
  "num-bigint",
  "num-integer",
