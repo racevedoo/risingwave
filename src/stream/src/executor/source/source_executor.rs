@@ -526,8 +526,10 @@ impl<S: StateStore> SourceExecutor<S> {
                                             // Therefore, all split migration must be done via
                                             // update
                                             // mutation and pause/resume
-                                            assert!(!self
-                                                .check_split_assignment_is_migration(actor_splits));
+
+                                            // https://github.com/risingwavelabs/risingwave/issues/12065
+                                            // assert!(!self
+                                            //     .check_split_assignment_is_migration(actor_splits));
 
                                             target_state = self
                                                 .apply_split_change(
