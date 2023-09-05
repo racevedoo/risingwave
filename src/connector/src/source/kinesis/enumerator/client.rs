@@ -76,7 +76,6 @@ impl SplitEnumerator for KinesisSplitEnumerator {
             .into_iter()
             .map(|x| KinesisSplit {
                 shard_id: x.shard_id().unwrap_or_default().to_string().into(),
-                // handle start with position in reader part
                 start_position: KinesisOffset::None,
                 end_position: KinesisOffset::None,
             })
