@@ -449,9 +449,6 @@ impl DdlController {
                     // Validate the sink on the connector node.
                     validate_sink(sink, self.env.connector_client()).await?;
                 }
-                StreamingJob::MaterializedView(table) => {
-
-                }
                 _ => {}
             }
             (ctx, table_fragments)
