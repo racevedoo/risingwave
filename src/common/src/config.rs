@@ -1183,10 +1183,6 @@ pub mod default {
         pub fn stream_dml_channel_initial_permits() -> usize {
             32768
         }
-
-        pub fn wasm_storage_url() -> Option<String> {
-            system_param::default::wasm_storage_url()
-        }
     }
 
     pub mod system {
