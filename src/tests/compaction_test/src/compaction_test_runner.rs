@@ -36,7 +36,7 @@ use risingwave_pb::common::WorkerType;
 use risingwave_pb::hummock::{HummockVersion, HummockVersionDelta};
 use risingwave_rpc_client::{HummockMetaClient, MetaClient};
 use risingwave_storage::hummock::hummock_meta_client::MonitoredHummockMetaClient;
-use risingwave_storage::hummock::{CachePolicy, HummockStorage, TieredCacheMetricsBuilder};
+use risingwave_storage::hummock::{CachePolicy, HummockStorage};
 use risingwave_storage::monitor::{
     CompactorMetrics, HummockMetrics, HummockStateStoreMetrics, MonitoredStateStore,
     MonitoredStorageMetrics, ObjectStoreMetrics,
@@ -410,7 +410,7 @@ async fn start_replay(
             replayed_epochs.pop();
             let mut epochs = vec![max_committed_epoch];
             epochs.extend(
-                pin_old_snapshots(&meta_client, &mut replayed_epochs, 1)
+                pin_old_snapshots(&meta_client, &replayed_epochs, 1)
                     .await
                     .into_iter(),
             );
@@ -521,7 +521,7 @@ async fn start_replay(
 
 async fn pin_old_snapshots(
     meta_client: &MetaClient,
-    replayed_epochs: &mut [HummockEpoch],
+    replayed_epochs: &[HummockEpoch],
     num: usize,
 ) -> Vec<HummockEpoch> {
     let mut old_epochs = vec![];
@@ -625,19 +625,15 @@ async fn open_hummock_iters(
         ))),
     );
 
-    for &epoch in snapshots.iter() {
+    for &epoch in snapshots {
         let iter = hummock
             .iter(
                 range.clone(),
                 epoch,
                 ReadOptions {
-                    prefix_hint: None,
                     table_id: TableId { table_id },
-                    retention_seconds: None,
-                    ignore_range_tombstone: false,
-                    read_version_from_backup: false,
-                    prefetch_options: Default::default(),
                     cache_policy: CachePolicy::Fill(CachePriority::High),
+                    ..Default::default()
                 },
             )
             .await?;
@@ -715,7 +711,6 @@ pub async fn create_hummock_store_with_metrics(
         )),
         metrics.state_store_metrics.clone(),
         metrics.object_store_metrics.clone(),
-        TieredCacheMetricsBuilder::unused(),
         metrics.storage_metrics.clone(),
         metrics.compactor_metrics.clone(),
     )

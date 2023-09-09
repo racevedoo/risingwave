@@ -129,8 +129,10 @@ impl InstantiatedComponent {
             .call_eval(&mut *self.store.lock().await, &input)
             .await??;
         let result = from_wasm_batch(&result)?;
-        let Some((record_batch,))= result.collect_tuple() else {
-            return Err(WasmUdfError::Encoding("should return only one record batch in IPC buffer".to_string()));
+        let Some((record_batch,)) = result.collect_tuple() else {
+            return Err(WasmUdfError::Encoding(
+                "should return only one record batch in IPC buffer".to_string(),
+            ));
         };
         Ok(record_batch?)
     }

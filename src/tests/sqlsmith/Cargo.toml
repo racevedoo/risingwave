@@ -30,7 +30,7 @@ similar = "2.2.1"
 tokio = { version = "0.2", package = "madsim-tokio" }
 tokio-postgres = "0.7"
 tracing = "0.1"
-tracing-subscriber = "0.3.16"
+tracing-subscriber = "0.3.17"
 
 [target.'cfg(not(madsim))'.dependencies]
 workspace-hack = { path = "../../workspace-hack" }
@@ -53,3 +53,6 @@ enable_sqlsmith_unit_test = []
 [[test]]
 name = "test_runner"
 harness = false
+
+[lints]
+workspace = true

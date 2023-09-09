@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #![expect(clippy::all)]
-#![expect(rustdoc::bare_urls)]
 #![expect(clippy::doc_markdown)]
+#![allow(non_snake_case)] // for derived code of `Message`
 #![feature(lint_reasons)]
 
 use std::str::FromStr;

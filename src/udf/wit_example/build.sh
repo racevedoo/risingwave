@@ -62,8 +62,8 @@ function build_go() {
     cd "$path/tinygo"
     go generate # generate bindings for Go
     tinygo build -target=wasi -o my_udf.go.wasm my_udf.go
-    wasm-tools component embed ../../wit my_udf.go.wasm -o my_udf.go.wasm 
-    
+    wasm-tools component embed ../../wit my_udf.go.wasm -o my_udf.go.wasm
+
     mv ./my_udf.go.wasm ..
     cd ..
 }

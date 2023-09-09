@@ -124,7 +124,16 @@ pub trait Row: Sized + std::fmt::Debug + PartialEq + Eq {
     /// Determines whether the datums of this row are equal to those of another.
     #[inline]
     fn eq(this: &Self, other: impl Row) -> bool {
-        this.iter().eq(other.iter())
+        if this.len() != other.len() {
+            return false;
+        }
+        for i in (0..this.len()).rev() {
+            // compare from the end to the start, as it's more likely to have same prefix
+            if this.datum_at(i) != other.datum_at(i) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -181,6 +190,10 @@ pub trait RowExt: Row {
             }
         }
         D(self)
+    }
+
+    fn is_null_at(&self, index: usize) -> bool {
+        self.datum_at(index).is_none()
     }
 }
 

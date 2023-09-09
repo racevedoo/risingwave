@@ -14,7 +14,7 @@
 
 //! `ScalarImpl` and `Datum` wrappers that implement `PartialOrd` and `Ord` with default order type.
 
-use std::cmp::{Ord, Ordering};
+use std::cmp::{Ord, Ordering, Reverse};
 use std::ops::Deref;
 
 use crate::dispatch_scalar_ref_variants;
@@ -104,6 +104,12 @@ impl<T: DefaultOrd + EstimateSize> EstimateSize for DefaultOrdered<T> {
     }
 }
 
+impl<T: EstimateSize> EstimateSize for Reverse<T> {
+    fn estimated_heap_size(&self) -> usize {
+        self.0.estimated_heap_size()
+    }
+}
+
 impl<T: DefaultOrd> DefaultOrdered<T> {
     pub fn new(inner: T) -> Self {
         Self(inner)
@@ -132,6 +138,7 @@ impl<T: DefaultOrd> From<T> for DefaultOrdered<T> {
     }
 }
 
+#[allow(clippy::incorrect_partial_ord_impl_on_ord_type)]
 impl<T: DefaultOrd> PartialOrd for DefaultOrdered<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.0.default_partial_cmp(other.as_inner())

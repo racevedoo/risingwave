@@ -18,6 +18,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use risingwave_common::util::column_index_mapping::ColIndexMapping;
 use risingwave_common::util::stream_graph_visitor::visit_fragment;
+use risingwave_connector::sink::catalog::SinkId;
 use risingwave_pb::catalog::connection::private_link_service::{
     PbPrivateLinkProvider, PrivateLinkProvider,
 };
@@ -32,39 +33,38 @@ use risingwave_pb::stream_plan::stream_node::NodeBody;
 use tonic::{Request, Response, Status};
 
 use crate::barrier::BarrierManagerRef;
+use crate::manager::sink_coordination::SinkCoordinatorManager;
 use crate::manager::{
     CatalogManagerRef, ClusterManagerRef, ConnectionId, FragmentManagerRef, IdCategory,
     IdCategoryType, MetaSrvEnv, StreamingJob,
 };
 use crate::rpc::cloud_provider::AwsEc2Client;
 use crate::rpc::ddl_controller::{DdlCommand, DdlController, DropMode, StreamingJobId};
-use crate::storage::MetaStore;
 use crate::stream::{GlobalStreamManagerRef, SourceManagerRef};
 use crate::{MetaError, MetaResult};
 
 #[derive(Clone)]
-pub struct DdlServiceImpl<S: MetaStore> {
-    env: MetaSrvEnv<S>,
+pub struct DdlServiceImpl {
+    env: MetaSrvEnv,
 
-    catalog_manager: CatalogManagerRef<S>,
-    ddl_controller: DdlController<S>,
+    catalog_manager: CatalogManagerRef,
+    sink_manager: SinkCoordinatorManager,
+    ddl_controller: DdlController,
     aws_client: Arc<Option<AwsEc2Client>>,
 }
 
-impl<S> DdlServiceImpl<S>
-where
-    S: MetaStore,
-{
+impl DdlServiceImpl {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        env: MetaSrvEnv<S>,
+    pub async fn new(
+        env: MetaSrvEnv,
         aws_client: Option<AwsEc2Client>,
-        catalog_manager: CatalogManagerRef<S>,
-        stream_manager: GlobalStreamManagerRef<S>,
-        source_manager: SourceManagerRef<S>,
-        cluster_manager: ClusterManagerRef<S>,
-        fragment_manager: FragmentManagerRef<S>,
-        barrier_manager: BarrierManagerRef<S>,
+        catalog_manager: CatalogManagerRef,
+        stream_manager: GlobalStreamManagerRef,
+        source_manager: SourceManagerRef,
+        cluster_manager: ClusterManagerRef,
+        fragment_manager: FragmentManagerRef,
+        barrier_manager: BarrierManagerRef,
+        sink_manager: SinkCoordinatorManager,
     ) -> Self {
         let aws_cli_ref = Arc::new(aws_client);
         let ddl_controller = DdlController::new(
@@ -76,21 +76,20 @@ where
             fragment_manager,
             barrier_manager,
             aws_cli_ref.clone(),
-        );
+        )
+        .await;
         Self {
             env,
             catalog_manager,
             ddl_controller,
             aws_client: aws_cli_ref,
+            sink_manager,
         }
     }
 }
 
 #[async_trait::async_trait]
-impl<S> DdlService for DdlServiceImpl<S>
-where
-    S: MetaStore,
-{
+impl DdlService for DdlServiceImpl {
     async fn create_database(
         &self,
         request: Request<CreateDatabaseRequest>,
@@ -253,6 +252,10 @@ where
                 drop_mode,
             ))
             .await?;
+
+        self.sink_manager
+            .stop_sink_coordinator(SinkId::from(sink_id))
+            .await;
 
         Ok(Response::new(DropSinkResponse {
             status: None,
@@ -586,6 +589,21 @@ where
         }))
     }
 
+    async fn alter_source(
+        &self,
+        request: Request<AlterSourceRequest>,
+    ) -> Result<Response<AlterSourceResponse>, Status> {
+        let AlterSourceRequest { source } = request.into_inner();
+        let version = self
+            .ddl_controller
+            .run_command(DdlCommand::AlterSourceColumn(source.unwrap()))
+            .await?;
+        Ok(Response::new(AlterSourceResponse {
+            status: None,
+            version,
+        }))
+    }
+
     async fn get_ddl_progress(
         &self,
         _request: Request<GetDdlProgressRequest>,
@@ -712,10 +730,7 @@ where
     }
 }
 
-impl<S> DdlServiceImpl<S>
-where
-    S: MetaStore,
-{
+impl DdlServiceImpl {
     async fn gen_unique_id<const C: IdCategoryType>(&self) -> MetaResult<u32> {
         let id = self.env.id_gen_manager().generate::<C>().await? as u32;
         Ok(id)

@@ -375,6 +375,18 @@ impl DataType {
         }
     }
 
+    /// Returns the inner type of a list type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the type is not a list type.
+    pub fn as_list(&self) -> &DataType {
+        match self {
+            DataType::List(t) => t,
+            _ => panic!("expect list type"),
+        }
+    }
+
     /// WARNING: Currently this should only be used in `WatermarkFilterExecutor`. Please be careful
     /// if you want to use this.
     pub fn min_value(&self) -> ScalarImpl {
@@ -702,6 +714,19 @@ impl From<&str> for ScalarImpl {
 impl From<&String> for ScalarImpl {
     fn from(s: &String) -> Self {
         Self::Utf8(s.as_str().into())
+    }
+}
+impl TryFrom<ScalarImpl> for String {
+    type Error = ArrayError;
+
+    fn try_from(val: ScalarImpl) -> ArrayResult<Self> {
+        match val {
+            ScalarImpl::Utf8(s) => Ok(s.into()),
+            other_scalar => bail!(
+                "cannot convert ScalarImpl::{} to concrete type",
+                other_scalar.get_ident()
+            ),
+        }
     }
 }
 

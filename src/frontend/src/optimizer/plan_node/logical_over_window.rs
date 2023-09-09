@@ -361,7 +361,7 @@ pub struct LogicalOverWindow {
 }
 
 impl LogicalOverWindow {
-    fn new(calls: Vec<PlanWindowFunction>, input: PlanRef) -> Self {
+    pub fn new(calls: Vec<PlanWindowFunction>, input: PlanRef) -> Self {
         let core = OverWindow::new(calls, input);
         let base = PlanBase::new_logical_with_core(&core);
         Self { base, core }
@@ -606,6 +606,10 @@ impl LogicalOverWindow {
             LogicalProject::with_out_col_idx(cur_node.into(), out_fields.into_iter()).into()
         }
     }
+
+    pub fn decompose(self) -> (PlanRef, Vec<PlanWindowFunction>) {
+        self.core.decompose()
+    }
 }
 
 impl PlanTreeNodeUnary for LogicalOverWindow {
@@ -649,7 +653,7 @@ impl ColPrunable for LogicalOverWindow {
 
         let (req_cols_input_part, req_cols_win_func_part) = {
             let mut in_input = required_cols.to_vec();
-            let in_win_funcs: IndexSet = in_input.drain_filter(|i| *i >= input_len).collect();
+            let in_win_funcs: IndexSet = in_input.extract_if(|i| *i >= input_len).collect();
             (IndexSet::from(in_input), in_win_funcs)
         };
 

@@ -27,6 +27,7 @@ pub use opendal_engine::*;
 
 pub mod s3;
 use await_tree::InstrumentAwait;
+use futures::stream::BoxStream;
 pub use s3::*;
 
 pub mod error;
@@ -101,7 +102,7 @@ pub trait ObjectStore: Send + Sync {
     async fn streaming_upload(&self, path: &str) -> ObjectResult<BoxedStreamingUploader>;
 
     /// If the `block_loc` is None, the whole object will be returned.
-    /// If objects are PUT using a multipart upload, it’s a good practice to GET them in the same
+    /// If objects are PUT using a multipart upload, it's a good practice to GET them in the same
     /// part sizes (or at least aligned to part boundaries) for best performance.
     /// <https://d1.awsstatic.com/whitepapers/AmazonS3BestPractices.pdf?stod_obj2>
     async fn read(&self, path: &str, block_loc: Option<BlockLocation>) -> ObjectResult<Bytes>;
@@ -134,7 +135,7 @@ pub trait ObjectStore: Send + Sync {
         MonitoredObjectStore::new(self, metrics)
     }
 
-    async fn list(&self, prefix: &str) -> ObjectResult<Vec<ObjectMetadata>>;
+    async fn list(&self, prefix: &str) -> ObjectResult<ObjectMetadataIter>;
 
     fn store_media_type(&self) -> &'static str;
 }
@@ -247,7 +248,7 @@ impl ObjectStoreImpl {
         object_store_impl_method_body_slice!(self, delete_objects, dispatch_async, paths)
     }
 
-    pub async fn list(&self, prefix: &str) -> ObjectResult<Vec<ObjectMetadata>> {
+    pub async fn list(&self, prefix: &str) -> ObjectResult<ObjectMetadataIter> {
         object_store_impl_method_body!(self, list, dispatch_async, prefix)
     }
 
@@ -468,6 +469,9 @@ impl MonitoredStreamingReader {
         }
     }
 
+    // This is a clippy bug, see https://github.com/rust-lang/rust-clippy/issues/11380.
+    // TODO: remove `allow` here after the issued is closed.
+    #[expect(clippy::needless_pass_by_ref_mut)]
     pub async fn read_bytes(&mut self, buf: &mut [u8]) -> ObjectResult<usize> {
         let operation_type = "streaming_read_read_bytes";
         let data_len = buf.len();
@@ -634,12 +638,6 @@ impl<OS: ObjectStore> MonitoredObjectStore<OS> {
                 .read(path, block_loc)
                 .verbose_instrument_await("object_store_read")
                 .await
-                .map_err(|err| {
-                    ObjectError::internal(format!(
-                        "read {:?} in block {:?} failed, error: {:?}",
-                        path, block_loc, err
-                    ))
-                })
         };
         let res = match self.read_timeout.as_ref() {
             None => future.await,
@@ -810,7 +808,7 @@ impl<OS: ObjectStore> MonitoredObjectStore<OS> {
         res
     }
 
-    pub async fn list(&self, prefix: &str) -> ObjectResult<Vec<ObjectMetadata>> {
+    pub async fn list(&self, prefix: &str) -> ObjectResult<ObjectMetadataIter> {
         let operation_type = "list";
         let _timer = self
             .object_store_metrics
@@ -871,7 +869,7 @@ pub async fn parse_remote_object_store(
         #[cfg(feature = "hdfs-backend")]
         hdfs if hdfs.starts_with("hdfs://") => {
             let hdfs = hdfs.strip_prefix("hdfs://").unwrap();
-            let (namenode, root) = hdfs.split_once('@').unwrap();
+            let (namenode, root) = hdfs.split_once('@').unwrap_or((hdfs, ""));
             ObjectStoreImpl::Opendal(
                 OpendalObjectStore::new_hdfs_engine(namenode.to_string(), root.to_string())
                     .unwrap()
@@ -880,7 +878,7 @@ pub async fn parse_remote_object_store(
         }
         gcs if gcs.starts_with("gcs://") => {
             let gcs = gcs.strip_prefix("gcs://").unwrap();
-            let (bucket, root) = gcs.split_once('@').unwrap();
+            let (bucket, root) = gcs.split_once('@').unwrap_or((gcs, ""));
             ObjectStoreImpl::Opendal(
                 OpendalObjectStore::new_gcs_engine(bucket.to_string(), root.to_string())
                     .unwrap()
@@ -890,7 +888,7 @@ pub async fn parse_remote_object_store(
 
         oss if oss.starts_with("oss://") => {
             let oss = oss.strip_prefix("oss://").unwrap();
-            let (bucket, root) = oss.split_once('@').unwrap();
+            let (bucket, root) = oss.split_once('@').unwrap_or((oss, ""));
             ObjectStoreImpl::Opendal(
                 OpendalObjectStore::new_oss_engine(bucket.to_string(), root.to_string())
                     .unwrap()
@@ -899,45 +897,35 @@ pub async fn parse_remote_object_store(
         }
         webhdfs if webhdfs.starts_with("webhdfs://") => {
             let webhdfs = webhdfs.strip_prefix("webhdfs://").unwrap();
-            let (endpoint, root) = webhdfs.split_once('@').unwrap();
+            let (namenode, root) = webhdfs.split_once('@').unwrap_or((webhdfs, ""));
             ObjectStoreImpl::Opendal(
-                OpendalObjectStore::new_webhdfs_engine(endpoint.to_string(), root.to_string())
+                OpendalObjectStore::new_webhdfs_engine(namenode.to_string(), root.to_string())
                     .unwrap()
                     .monitored(metrics),
             )
         }
         azblob if azblob.starts_with("azblob://") => {
             let azblob = azblob.strip_prefix("azblob://").unwrap();
-            let (container_name, root) = azblob.split_once('@').unwrap();
+            let (container_name, root) = azblob.split_once('@').unwrap_or((azblob, ""));
             ObjectStoreImpl::Opendal(
                 OpendalObjectStore::new_azblob_engine(container_name.to_string(), root.to_string())
                     .unwrap()
                     .monitored(metrics),
             )
         }
-        fs if fs.starts_with("fs://") => {
-            let fs = fs.strip_prefix("fs://").unwrap();
-            let (_, root) = fs.split_once('@').unwrap();
-            ObjectStoreImpl::Opendal(
-                OpendalObjectStore::new_fs_engine(root.to_string())
-                    .unwrap()
-                    .monitored(metrics),
-            )
-        }
-
-        s3_compatible if s3_compatible.starts_with("s3-compatible://") => ObjectStoreImpl::S3(
-            // For backward compatibility, s3-compatible is still reserved.
-            // todo: remove this after this change has been applied for downstream projects.
-            S3ObjectStore::new(
-                s3_compatible
-                    .strip_prefix("s3-compatible://")
-                    .unwrap()
-                    .to_string(),
-                metrics.clone(),
-            )
-            .await
-            .monitored(metrics),
+        fs if fs.starts_with("fs://") => ObjectStoreImpl::Opendal(
+            // Now fs engine is only used in CI, so we can hardcode root.
+            OpendalObjectStore::new_fs_engine("/tmp/rw_ci".to_string())
+                .unwrap()
+                .monitored(metrics),
         ),
+
+        s3_compatible if s3_compatible.starts_with("s3-compatible://") => {
+            tracing::error!("The s3 compatible mode has been unified with s3.");
+            tracing::error!("If you want to use s3 compatible storage, please set your access_key, secret_key and region to the environment variable AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
+            set your endpoint to the environment variable RW_S3_ENDPOINT.");
+            panic!("Passing s3-compatible is not supported, please modify the environment variable and pass in s3.");
+        }
         minio if minio.starts_with("minio://") => ObjectStoreImpl::S3(
             S3ObjectStore::with_minio(minio, metrics.clone())
                 .await
@@ -967,3 +955,5 @@ pub async fn parse_remote_object_store(
         }
     }
 }
+
+pub type ObjectMetadataIter = BoxStream<'static, ObjectResult<ObjectMetadata>>;

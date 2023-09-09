@@ -55,7 +55,30 @@ pub async fn handle_create_function(
         )
         .into());
     }
-
+    let language = match params.language {
+        Some(lang) => {
+            let lang = lang.real_value().to_lowercase();
+            match &*lang {
+                "python" | "java" => lang,
+                _ => {
+                    return Err(ErrorCode::InvalidParameterValue(format!(
+                        "language {} is not supported",
+                        lang
+                    ))
+                    .into())
+                }
+            }
+        }
+        // Empty language is acceptable since we only require the external server implements the
+        // correct protocol.
+        None => "".to_string(),
+    };
+    let Some(FunctionDefinition::SingleQuotedDef(identifier)) = params.as_ else {
+        return Err(ErrorCode::InvalidParameterValue("AS must be specified".to_string()).into());
+    };
+    let Some(CreateFunctionUsing::Link(link)) = params.using else {
+        return Err(ErrorCode::InvalidParameterValue("USING must be specified".to_string()).into());
+    };
     let return_type;
     let kind = match returns {
         Some(CreateFunctionReturns::Value(data_type)) => {
@@ -133,7 +156,10 @@ pub async fn handle_create_function(
     let extra = match using {
         CreateFunctionUsing::Link(l) => {
             let Some(FunctionDefinition::SingleQuotedDef(id)) = params.as_ else {
-                return Err(ErrorCode::InvalidParameterValue("AS must be specified for USING link".to_string()).into());
+                return Err(ErrorCode::InvalidParameterValue(
+                    "AS must be specified for USING link".to_string(),
+                )
+                .into());
             };
             identifier = id;
             link = l;

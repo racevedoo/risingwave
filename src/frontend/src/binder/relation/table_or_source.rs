@@ -250,7 +250,19 @@ impl Binder {
                 view_catalog.name, view_catalog.sql, e
             ))
         })?;
+
         let columns = view_catalog.columns.clone();
+
+        if !itertools::equal(
+            query.schema().fields().iter().map(|f| &f.data_type),
+            view_catalog.columns.iter().map(|f| &f.data_type),
+        ) {
+            return Err(ErrorCode::BindError(format!(
+                "failed to bind view {}. The SQL's schema is different from catalog's schema sql: {}, bound schema: {:?}, catalog schema: {:?}",
+                view_catalog.name, view_catalog.sql, query.schema(), columns
+            )).into());
+        }
+
         let share_id = match self.shared_views.get(&view_catalog.id) {
             Some(share_id) => *share_id,
             None => {
@@ -260,7 +272,10 @@ impl Binder {
                 share_id
             }
         };
-        let input = Relation::Subquery(Box::new(BoundSubquery { query }));
+        let input = Relation::Subquery(Box::new(BoundSubquery {
+            query,
+            lateral: false,
+        }));
         Ok((
             Relation::Share(Box::new(BoundShare { share_id, input })),
             columns.iter().map(|c| (false, c.clone())).collect_vec(),
