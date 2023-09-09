@@ -59,7 +59,7 @@ pub async fn handle_create_function(
         Some(lang) => {
             let lang = lang.real_value().to_lowercase();
             match &*lang {
-                "python" | "java" => lang,
+                "python" | "java" | "wasm_v1" => lang,
                 _ => {
                     return Err(ErrorCode::InvalidParameterValue(format!(
                         "language {} is not supported",
@@ -72,12 +72,6 @@ pub async fn handle_create_function(
         // Empty language is acceptable since we only require the external server implements the
         // correct protocol.
         None => "".to_string(),
-    };
-    let Some(FunctionDefinition::SingleQuotedDef(identifier)) = params.as_ else {
-        return Err(ErrorCode::InvalidParameterValue("AS must be specified".to_string()).into());
-    };
-    let Some(CreateFunctionUsing::Link(link)) = params.using else {
-        return Err(ErrorCode::InvalidParameterValue("USING must be specified".to_string()).into());
     };
     let return_type;
     let kind = match returns {
@@ -105,20 +99,6 @@ pub async fn handle_create_function(
             )
             .into())
         }
-    };
-
-    let language = match params.language {
-        Some(lang) => {
-            let language = lang.real_value().to_lowercase();
-            if !matches!(language.as_str(), "python" | "java" | "wasm_v1") {
-                return Err(ErrorCode::InvalidParameterValue(
-                    "LANGUAGE should be one of: python, java, wasm_v1".to_string(),
-                )
-                .into());
-            }
-            language
-        }
-        None => "".to_string(),
     };
 
     let Some(using) = params.using else {

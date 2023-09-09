@@ -71,7 +71,6 @@ mio = { version = "0.8", features = ["net", "os-ext"] }
 multimap = { version = "0.8" }
 nom = { version = "7" }
 num-bigint = { version = "0.4" }
-num-complex = { version = "0.4" }
 num-integer = { version = "0.1", features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128", "libm"] }
 opentelemetry_api = { version = "0.20", features = ["logs", "metrics"] }
@@ -175,7 +174,6 @@ mio = { version = "0.8", features = ["net", "os-ext"] }
 multimap = { version = "0.8" }
 nom = { version = "7" }
 num-bigint = { version = "0.4" }
-num-complex = { version = "0.4" }
 num-integer = { version = "0.1", features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128", "libm"] }
 opentelemetry_api = { version = "0.20", features = ["logs", "metrics"] }
