@@ -19,7 +19,7 @@ echo "size of encoded wasm: ${#encoded} bytes"
 psql -h localhost -p 4566 -d dev -U root -c "DROP FUNCTION IF EXISTS count_char;"
 sql="CREATE FUNCTION count_char (s varchar, c varchar) RETURNS BIGINT LANGUAGE wasm_v1 USING BASE64 '$encoded';"
 echo "$sql" > create.sql
-psql -h localhost -p 4566 -d dev -U root -f ./create.sql
+psql -h localhost -p 4566 -d dev -U root -v "ON_ERROR_STOP=1" -f ./create.sql
 
 # test
 psql -h localhost -p 4566 -d dev -U root -c "SELECT count_char('aabca', 'a');"
