@@ -52,7 +52,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "v1.2.0-test"
+version = "1.2.0-test"
 edition = "2021"
 homepage = "https://github.com/risingwavelabs/risingwave"
 keywords = ["sql", "database", "streaming"]
