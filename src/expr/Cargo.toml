@@ -19,6 +19,7 @@ aho-corasick = "1"
 anyhow = "1"
 arrow-array = { workspace = true }
 arrow-schema = { workspace = true }
+async-once-cell = "0.5.3"
 async-trait = "0.1"
 auto_enums = "0.8"
 await-tree = { workspace = true }

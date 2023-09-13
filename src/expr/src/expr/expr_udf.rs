@@ -47,7 +47,9 @@ enum UdfImpl {
         identifier: String,
     },
     Wasm {
-        component: InstantiatedComponent,
+        component: async_once_cell::OnceCell<InstantiatedComponent>,
+        wasm_storage_url: String,
+        identifier: String,
     },
 }
 
@@ -59,7 +61,10 @@ impl std::fmt::Debug for UdfImpl {
                 .field("client", client)
                 .field("identifier", identifier)
                 .finish(),
-            Self::Wasm { component: _ } => f
+            Self::Wasm {
+                //  component: _ 
+                ..
+                } => f
                 .debug_struct("Wasm")
                 // .field("component", component)
                 .finish(),
@@ -115,8 +120,23 @@ impl UdfExpression {
             arrow_array::RecordBatch::try_new_with_options(self.arg_schema.clone(), columns, &opts)
                 .expect("failed to build record batch");
         let output: arrow_array::RecordBatch = match &self.imp {
-            UdfImpl::Wasm { component } => {
+            UdfImpl::Wasm {
+                component,
+                wasm_storage_url,
+                identifier,
+            } => {
+                let wasm_engine = WasmEngine::get_or_create();
+
                 component
+                    .get_or_init({
+                        use futures_util::FutureExt;
+
+                        wasm_engine
+                            .load_component(wasm_storage_url, identifier)
+                            .instrument(tracing::info_span!("load_component", %identifier))
+                            .map(|res| res.unwrap())
+                    })
+                    .await
                     .eval(input)
                     .instrument_await(self.span.clone())
                     .await?
@@ -172,16 +192,11 @@ impl<'a> TryFrom<&'a ExprNode> for UdfExpression {
                 client: get_or_create_flight_client(&udf.link)?,
                 identifier: udf.identifier.clone(),
             },
-            Some(PbExtra::Wasm(PbWasmUdfExtra { wasm_storage_url })) => {
-                let wasm_engine = WasmEngine::get_or_create();
-                let component = futures::executor::block_on({
-                    wasm_engine
-                        .load_component(wasm_storage_url, &udf.identifier)
-                        .instrument(tracing::info_span!("load_component", %udf.identifier))
-                })?;
-
-                UdfImpl::Wasm { component }
-            }
+            Some(PbExtra::Wasm(PbWasmUdfExtra { wasm_storage_url })) => UdfImpl::Wasm {
+                component: async_once_cell::OnceCell::new(),
+                wasm_storage_url: wasm_storage_url.to_string(),
+                identifier: udf.identifier.clone(),
+            },
         };
 
         Ok(Self {
