@@ -217,10 +217,10 @@ impl CreateMviewProgressTracker {
         upstream_mv_counts: HashMap<CreateMviewEpoch, HashMap<TableId, usize>>,
         definitions: HashMap<CreateMviewEpoch, String>,
         version_stats: HummockVersionStats,
+        mut tracking_commands: HashMap<CreateMviewEpoch, TrackingCommand>,
     ) -> Self {
         let progress_per_actor = backfill_progress.inner;
-        let progress_map = Default::default();
-        let progress_per_stream_job = progress_per_actor
+        let progress_map = progress_per_actor
             .into_iter()
             .map(|(actor_id, state)| {
                 let epoch = actor_map.get(&actor_id).unwrap();
@@ -273,7 +273,10 @@ impl CreateMviewProgressTracker {
                     consumed_rows,
                     definition,
                 };
-            });
+                let tracking_command = tracking_commands.remove(&epoch).unwrap();
+                (*epoch, (progress, tracking_command))
+            })
+            .collect();
         Self {
             progress_map,
             actor_map,
