@@ -28,9 +28,9 @@ pub mod agg;
 mod error;
 pub mod expr;
 pub mod function;
+pub mod scalar;
 pub mod sig;
 pub mod table_function;
-pub mod vector_op;
 pub mod window_function;
 
 pub use error::{ExprError, Result};
