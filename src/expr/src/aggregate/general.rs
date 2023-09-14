@@ -148,10 +148,10 @@ mod tests {
     use risingwave_common::types::{Datum, Decimal};
     use test::Bencher;
 
-    use crate::agg::AggCall;
+    use crate::aggregate::AggCall;
 
     fn test_agg(pretty: &str, input: StreamChunk, expected: Datum) {
-        let agg = crate::agg::build_append_only(&AggCall::from_pretty(pretty)).unwrap();
+        let agg = crate::aggregate::build_append_only(&AggCall::from_pretty(pretty)).unwrap();
         let mut state = agg.create_state();
         agg.update(&mut state, &input)
             .now_or_never()
@@ -434,7 +434,7 @@ mod tests {
         };
         let chunk = StreamChunk::from_parts(ops, DataChunk::new(vec![Arc::new(data)], vis));
         let pretty = format!("({agg_desc}:int8 $0:int8)");
-        let agg = crate::agg::build_append_only(&AggCall::from_pretty(pretty)).unwrap();
+        let agg = crate::aggregate::build_append_only(&AggCall::from_pretty(pretty)).unwrap();
         let mut state = agg.create_state();
         b.iter(|| {
             agg.update(&mut state, &chunk)

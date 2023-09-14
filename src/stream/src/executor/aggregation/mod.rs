@@ -19,7 +19,7 @@ use risingwave_common::array::ArrayImpl::Bool;
 use risingwave_common::array::{DataChunk, Vis};
 use risingwave_common::bail;
 use risingwave_common::catalog::{Field, Schema};
-use risingwave_expr::agg::{AggCall, AggKind};
+use risingwave_expr::aggregate::{AggCall, AggKind};
 use risingwave_storage::StateStore;
 
 use super::ActorContextRef;

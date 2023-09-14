@@ -26,7 +26,7 @@ use risingwave_common::format::{Formatter, FormatterNode, SpecifierType};
 use risingwave_common::session_config::USER_NAME_WILD_CARD;
 use risingwave_common::types::{DataType, ScalarImpl, Timestamptz};
 use risingwave_common::{GIT_SHA, RW_VERSION};
-use risingwave_expr::agg::{agg_kinds, AggKind};
+use risingwave_expr::aggregate::{agg_kinds, AggKind};
 use risingwave_expr::function::window::{
     Frame, FrameBound, FrameBounds, FrameExclusion, WindowFuncKind,
 };

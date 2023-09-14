@@ -24,7 +24,7 @@ use smallvec::SmallVec;
 
 use super::buffer::WindowBuffer;
 use super::{StateEvictHint, StateKey, StatePos, WindowState};
-use crate::agg::{build_append_only, AggArgs, AggCall, BoxedAggregateFunction};
+use crate::aggregate::{build_append_only, AggArgs, AggCall, BoxedAggregateFunction};
 use crate::function::window::{WindowFuncCall, WindowFuncKind};
 use crate::Result;
 

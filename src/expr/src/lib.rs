@@ -24,7 +24,7 @@
 #![feature(test)]
 #![feature(arc_unwrap_or_clone)]
 
-pub mod agg;
+pub mod aggregate;
 mod error;
 pub mod expr;
 pub mod function;

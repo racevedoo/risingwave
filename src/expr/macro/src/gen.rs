@@ -463,7 +463,7 @@ impl FunctionAttr {
             fn #ctor_name() {
                 use risingwave_common::types::{DataType, DataTypeName};
                 unsafe { crate::sig::agg::_register(#descriptor_type {
-                    func: crate::agg::AggKind::#pb_type,
+                    func: crate::aggregate::AggKind::#pb_type,
                     inputs_type: &[#(#args),*],
                     state_type: #state_type,
                     ret_type: #ret,
@@ -633,7 +633,7 @@ impl FunctionAttr {
                 use risingwave_common::estimate_size::EstimateSize;
 
                 use crate::Result;
-                use crate::agg::AggregateState;
+                use crate::aggregate::AggregateState;
 
                 #[derive(Clone)]
                 struct Agg {
@@ -642,7 +642,7 @@ impl FunctionAttr {
                 }
 
                 #[async_trait::async_trait]
-                impl crate::agg::AggregateFunction for Agg {
+                impl crate::aggregate::AggregateFunction for Agg {
                     fn return_type(&self) -> DataType {
                         self.return_type.clone()
                     }
