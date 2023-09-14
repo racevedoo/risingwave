@@ -922,7 +922,10 @@ pub mod default {
         }
 
         pub fn auto_dump_heap_profile() -> AutoDumpHeapProfileConfig {
-            Default::default()
+            AutoDumpHeapProfileConfig {
+                dir: "./.risingwave/profiling".to_string(),
+                threshold: 0.7,
+            }
         }
 
         pub fn manually_dump_heap_profile_dir() -> String {

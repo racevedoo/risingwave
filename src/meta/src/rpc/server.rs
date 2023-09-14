@@ -427,7 +427,7 @@ pub async fn start_service_as_election_leader<S: MetaStore>(
             compute_clients: ComputeClientPool::default(),
             meta_store: env.meta_store_ref(),
             ui_path: address_info.ui_path,
-            binary_path: opts.rw_binary_path,
+            binary_path: std::env::args().nth(0),
         };
         let task = tokio::spawn(dashboard_service.serve());
         Some(task)

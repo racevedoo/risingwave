@@ -25,6 +25,8 @@ pub async fn run_jeprof(
     collapsed_path: String,
     binary_path: String,
 ) -> Result<(), DashboardError> {
+    dbg!(&binary_path);
+    dbg!(&profile_path);
     let prof_cmd = move || {
         Command::new("jeprof")
             .arg("--collapsed")

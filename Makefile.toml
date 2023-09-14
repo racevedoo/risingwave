@@ -375,6 +375,7 @@ script = '''
 #!/usr/bin/env bash
 set -e
 cargo clean
+#TODO
 '''
 
 [tasks.build-docs]

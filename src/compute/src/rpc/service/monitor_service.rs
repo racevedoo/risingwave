@@ -113,7 +113,6 @@ impl MonitorService for MonitorServiceImpl {
         }
     }
 
-    #[cfg(target_os = "linux")]
     #[cfg_attr(coverage, no_coverage)]
     async fn heap_profiling(
         &self,
@@ -155,22 +154,23 @@ impl MonitorService for MonitorServiceImpl {
             tracing::warn!("Manually Jemalloc dump heap file failed! {:?}", e);
             Err(Status::internal(e.to_string()))
         } else {
+            tracing::info!("Manually Jemalloc dump heap file created: {}", &file_path);
             Ok(Response::new(HeapProfilingResponse {}))
         };
         unsafe { Box::from_raw(file_path_ptr) };
         response
     }
 
-    #[cfg(not(target_os = "linux"))]
-    #[cfg_attr(coverage, no_coverage)]
-    async fn heap_profiling(
-        &self,
-        _request: Request<HeapProfilingRequest>,
-    ) -> Result<Response<HeapProfilingResponse>, Status> {
-        Err(Status::unimplemented(
-            "heap profiling is only implemented on Linux",
-        ))
-    }
+    // #[cfg(not(target_os = "linux"))]
+    // #[cfg_attr(coverage, no_coverage)]
+    // async fn heap_profiling(
+    //     &self,
+    //     _request: Request<HeapProfilingRequest>,
+    // ) -> Result<Response<HeapProfilingResponse>, Status> {
+    //     Err(Status::unimplemented(
+    //         "heap profiling is only implemented on Linux",
+    //     ))
+    // }
 
     #[cfg_attr(coverage, no_coverage)]
     async fn list_heap_profiling(
