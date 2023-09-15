@@ -45,7 +45,7 @@ public class PostgresDialect implements JdbcDialect {
         RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.TIMESTAMP, "timestamp");
         RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.INTERVAL, "varchar");
         RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.DATE, "date");
-        RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.TIMESTAMPTZ, "timestampz");
+        RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.TIMESTAMPTZ, "timestamptz");
         RW_TYPE_TO_JDBC_TYPE_NAME.put(TypeName.JSONB, "varchar");
     }
 
@@ -135,8 +135,7 @@ public class PostgresDialect implements JdbcDialect {
                     if (typeName == null) {
                         typeName = fieldType.getTypeName().name();
                     }
-                    stmt.setArray(
-                            i + 1, conn.createArrayOf(typeName, objArray));
+                    stmt.setArray(i + 1, conn.createArrayOf(typeName, objArray));
                     break;
                 default:
                     stmt.setObject(placeholderIdx++, row.get(i));
