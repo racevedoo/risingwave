@@ -52,7 +52,7 @@ impl Rule for AggGroupBySimplifyRule {
                         return_type: data_type.clone(),
                         inputs: vec![InputRef::new(i, data_type)],
                         distinct: false,
-                        order_by: vec![ColumnOrder::new(i, OrderType::ascending())],
+                        order_by: vec![],
                         filter: Condition::true_cond(),
                         direct_args: vec![],
                     });
