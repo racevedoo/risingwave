@@ -16,18 +16,18 @@ use std::collections::HashMap;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use itertools::Itertools;
 use redis::{Connection, Pipeline};
-use risingwave_common::array::{Op, RowRef, StreamChunk};
+use risingwave_common::array::StreamChunk;
 use risingwave_common::catalog::Schema;
-use risingwave_common::row::Row;
-use risingwave_common::types::ToText;
-use risingwave_common::util::iter_util::ZipEqDebug;
 use risingwave_rpc_client::ConnectorClient;
 use serde_derive::Deserialize;
 use serde_with::serde_as;
 
-use super::{SinkError, SinkParam, SINK_TYPE_APPEND_ONLY, SINK_TYPE_OPTION, SINK_TYPE_UPSERT};
+use super::encoder::{JsonEncoder, TemplateEncoder, TimestampHandlingMode};
+use super::formatter::{AppendOnlyFormatter, UpsertFormatter};
+use super::{
+    FormattedSink, SinkError, SinkParam, SINK_TYPE_APPEND_ONLY, SINK_TYPE_OPTION, SINK_TYPE_UPSERT,
+};
 use crate::common::RedisCommon;
 use crate::sink::{DummySinkCommitCoordinator, Result, Sink, SinkWriter, SinkWriterParam};
 
@@ -159,75 +159,38 @@ impl RedisSinkWriter {
             kv_formatter,
         })
     }
+}
 
-    fn append_only(&mut self, chunk: StreamChunk) -> Result<()> {
-        for (op, row) in chunk.rows() {
-            if op != Op::Insert {
-                continue;
-            }
-            self.get_redis_key_values(row).map(|(key, value)| {
-                self.pipe.set(key, value);
-            })?;
-        }
+impl FormattedSink for Pipeline {
+    type K = String;
+    type V = String;
+
+    async fn write_one(&mut self, k: Option<Self::K>, v: Option<Self::V>) -> Result<()> {
+        let k = k.unwrap();
+        match v {
+            Some(v) => self.set(k, v),
+            None => self.del(k),
+        };
         Ok(())
-    }
-
-    fn upsert(&mut self, chunk: StreamChunk) -> Result<()> {
-        for (op, row) in chunk.rows() {
-            match op {
-                Op::Insert => self.get_redis_key_values(row).map(|(key, value)| {
-                    self.pipe.set(key, value);
-                })?,
-                Op::Delete => self.get_redis_key_values(row).map(|(key, _)| {
-                    self.pipe.del(key);
-                })?,
-                Op::UpdateDelete => {}
-                Op::UpdateInsert => self.get_redis_key_values(row).map(|(key, value)| {
-                    self.pipe.set(key, value);
-                })?,
-            }
-        }
-        Ok(())
-    }
-
-    fn get_redis_key_values(&mut self, row: RowRef<'_>) -> Result<(String, String)> {
-        match &self.kv_formatter {
-            Some((key, value)) => {
-                let mut key = key.clone();
-                let mut value = value.clone();
-                for (name, data) in self.schema.names_str().iter().zip_eq_debug(row.iter()) {
-                    key = key.replace(&format!("{{{}}}", name), &data.to_text());
-                    value = value.replace(&format!("{{{}}}", name), &data.to_text());
-                }
-                Ok((key, value))
-            }
-            _ => {
-                let key = Self::default_redis_key(row, &self.pk_indices);
-                let value = Self::default_redis_value(row);
-                Ok((key, value))
-            }
-        }
-    }
-
-    pub fn default_redis_key(row: RowRef<'_>, pk_indices: &[usize]) -> String {
-        pk_indices
-            .iter()
-            .map(|i| row.datum_at(*i).to_text())
-            .join(":")
-    }
-
-    pub fn default_redis_value(row: RowRef<'_>) -> String {
-        format!("[{}]", row.iter().map(|v| v.to_text()).join(","))
     }
 }
 
 #[async_trait]
 impl SinkWriter for RedisSinkWriter {
     async fn write_batch(&mut self, chunk: StreamChunk) -> Result<()> {
+        let (kt, _) = self.kv_formatter.as_ref().unwrap();
+        let key_encoder = TemplateEncoder::new(&self.schema, Some(&self.pk_indices), kt);
+        let val_encoder = JsonEncoder::new(&self.schema, None, TimestampHandlingMode::Milli);
         if self.is_append_only {
-            self.append_only(chunk)
+            let f = AppendOnlyFormatter::new(key_encoder, val_encoder);
+            // Only mutably borrow `self.pipe` rather than whole `self`,
+            // because encoders are still holding immutable borrow of `self.schema`.
+            // This allows us to avoid schema clone as in kafka.
+            // Kafka should also be refactored to only &mut part of it rather than whole `self`.
+            self.pipe.write_chunk(chunk, f).await
         } else {
-            self.upsert(chunk)
+            let f = UpsertFormatter::new(key_encoder, val_encoder);
+            self.pipe.write_chunk(chunk, f).await
         }
     }
 
