@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use risingwave_common::util::sort_util::{ColumnOrder, OrderType};
 use risingwave_expr::agg::AggKind;
 
 use super::super::plan_node::*;
