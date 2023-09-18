@@ -91,6 +91,11 @@ fn last_value<T>(_: T, input: T) -> T {
     input
 }
 
+#[aggregate("internal_arbitrary_value(*) -> auto", state = "ref")]
+fn internal_arbitrary_value<T>(state: T, _: T, _retract: bool) -> T {
+    state
+}
+
 /// Note the following corner cases:
 ///
 /// ```slt

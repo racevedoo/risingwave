@@ -237,6 +237,9 @@ pub enum AggKind {
     PercentileDisc,
     Mode,
     Grouping,
+
+    /// Return arbitrary one of the input values, and never change even on Update/Delete.
+    InternalArbitraryValue,
 }
 
 impl AggKind {
@@ -268,6 +271,7 @@ impl AggKind {
             PbType::PercentileDisc => Ok(AggKind::PercentileDisc),
             PbType::Mode => Ok(AggKind::Mode),
             PbType::Grouping => Ok(AggKind::Grouping),
+            PbType::InternalArbitraryValue => Ok(AggKind::InternalArbitraryValue),
             PbType::Unspecified => bail!("Unrecognized agg."),
         }
     }
@@ -298,8 +302,9 @@ impl AggKind {
             Self::VarSamp => PbType::VarSamp,
             Self::PercentileCont => PbType::PercentileCont,
             Self::PercentileDisc => PbType::PercentileDisc,
-            Self::Grouping => PbType::Grouping,
             Self::Mode => PbType::Mode,
+            Self::Grouping => PbType::Grouping,
+            Self::InternalArbitraryValue => PbType::InternalArbitraryValue,
         }
     }
 }
@@ -428,6 +433,7 @@ pub mod agg_kinds {
                 | AggKind::BoolAnd
                 | AggKind::BoolOr
                 | AggKind::ApproxCountDistinct
+                | AggKind::InternalArbitraryValue
         };
     }
     pub use single_value_state;
@@ -461,7 +467,8 @@ impl AggKind {
             | AggKind::BitXor
             | AggKind::Min
             | AggKind::Max
-            | AggKind::Sum => Some(self),
+            | AggKind::Sum
+            | AggKind::InternalArbitraryValue => Some(self),
             AggKind::Sum0 | AggKind::Count => Some(AggKind::Sum0),
             agg_kinds::simply_cannot_two_phase!() => None,
             agg_kinds::rewritten!() => None,
