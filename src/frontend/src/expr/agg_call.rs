@@ -71,9 +71,14 @@ impl AggCall {
             // min/max allowed for all types except for bool and jsonb (#7981)
             (AggKind::Min | AggKind::Max, [DataType::Jsonb]) => return Err(err()),
             // may return list or struct type
-            (AggKind::Min | AggKind::Max | AggKind::FirstValue | AggKind::LastValue, [input]) => {
-                input.clone()
-            }
+            (
+                AggKind::Min
+                | AggKind::Max
+                | AggKind::FirstValue
+                | AggKind::LastValue
+                | AggKind::InternalArbitraryValue,
+                [input],
+            ) => input.clone(),
             (AggKind::ArrayAgg, [input]) => List(Box::new(input.clone())),
             // functions that are rewritten in the frontend and don't exist in the expr crate
             (AggKind::Avg, [input]) => match input {
