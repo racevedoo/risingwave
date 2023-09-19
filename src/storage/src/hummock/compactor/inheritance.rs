@@ -12,51 +12,73 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use risingwave_hummock_sdk::HummockSstableObjectId;
 use risingwave_pb::hummock::{
-    BlockInheritance as PbBlockInheritance, Parent as PbParent,
+    BlockInheritance as PbBlockInheritance, ParentInfo as PbParentInfo,
     SstableInheritance as PbSstableInheritance,
 };
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Parent {
-    pub sst_obj_id: HummockSstableObjectId,
-    pub sst_blk_idx: usize,
-}
+const PARENT_INFO_MASK: u64 = 1 << 63;
 
-impl Parent {
-    pub fn from_proto(proto: &PbParent) -> Self {
-        Self {
-            sst_obj_id: proto.sst_obj_id,
-            sst_blk_idx: proto.sst_blk_idx as usize,
+pub struct ParentInfo;
+
+impl ParentInfo {
+    pub fn from_proto(proto: &PbParentInfo) -> BTreeSet<usize> {
+        let mut res = BTreeSet::new();
+        let mut iter = proto.info.iter();
+        loop {
+            let Some(u) = iter.next() else { break };
+
+            // single
+            if u & PARENT_INFO_MASK == 0 {
+                res.insert(*u as usize);
+                continue;
+            }
+            // range
+            let v = iter.next().unwrap();
+            for i in *u..*v {
+                res.insert(i as usize);
+            }
         }
+        res
     }
 
-    pub fn to_proto(&self) -> PbParent {
-        PbParent {
-            sst_obj_id: self.sst_obj_id,
-            sst_blk_idx: self.sst_blk_idx as u64,
+    pub fn to_proto(info: &BTreeSet<usize>) -> PbParentInfo {
+        let mut proto = PbParentInfo::default();
+        for v in info {
+            let Some(prev) = proto.info.last_mut() else {
+                proto.info.push(*v as u64);
+                continue;
+            };
+
+            if (*prev | (!PARENT_INFO_MASK)) + 1 != *v as u64 {
+                proto.info.push(*v as u64);
+                continue;
+            }
         }
+        proto
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct BlockInheritance {
-    pub parents: BTreeSet<Parent>,
+    pub parents: BTreeMap<HummockSstableObjectId, BTreeSet<usize>>,
 }
 
 impl BlockInheritance {
     pub fn from_proto(proto: &PbBlockInheritance) -> Self {
+        let mut parents = BTreeMap::new();
+
         Self {
-            parents: proto.parents.iter().map(Parent::from_proto).collect(),
+            parents: proto.parents.iter().map(ParentInfo::from_proto).collect(),
         }
     }
 
     pub fn to_proto(&self) -> PbBlockInheritance {
         PbBlockInheritance {
-            parents: self.parents.iter().map(Parent::to_proto).collect(),
+            parents: self.parents.iter().map(ParentInfo::to_proto).collect(),
         }
     }
 }

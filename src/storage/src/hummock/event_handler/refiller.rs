@@ -33,7 +33,7 @@ use risingwave_hummock_sdk::HummockSstableObjectId;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 
-use crate::hummock::compactor::inheritance::{Parent, SstableInheritance};
+use crate::hummock::compactor::inheritance::{ParentInfo, SstableInheritance};
 use crate::hummock::local_version::pinned_version::PinnedVersion;
 use crate::hummock::{HummockResult, SstableBlockIndex, SstableStoreRef, TableHolder};
 use crate::monitor::StoreLocalStatistic;
@@ -328,7 +328,7 @@ impl CacheRefillTask {
                     let Some(block_inheritance) = sstable_inheritance.blocks.get(idx) else {
                         continue;
                     };
-                    for Parent {
+                    for ParentInfo {
                         sst_obj_id,
                         sst_blk_idx,
                     } in &block_inheritance.parents
