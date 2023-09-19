@@ -17,9 +17,13 @@ use risingwave_common::row::Row;
 
 use crate::sink::Result;
 
+mod avro;
 mod json;
+mod proto;
 
+pub use avro::AvroEncoder;
 pub use json::JsonEncoder;
+pub use proto::ProtoEncoder;
 
 /// Encode a row of a relation into
 /// * an object in json
