@@ -43,7 +43,7 @@ done
 run_sql_file "$PARENT_PATH"/sql/backfill/create_mv.sql &
 
 # Provide upstream updates
-for i in $(seq 1 5)
+for i in $(seq 1 2)
 do
   run_sql_file "$PARENT_PATH"/sql/backfill/insert_recurse.sql &
 done
