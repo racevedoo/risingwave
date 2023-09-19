@@ -34,7 +34,7 @@ run_sql_file "$PARENT_PATH"/sql/backfill/create_base_table.sql
 run_sql_file "$PARENT_PATH"/sql/backfill/insert_seed.sql
 
 # Provide snapshot
-for i in $(seq 1 12)
+for i in $(seq 1 18)
 do
   run_sql_file "$PARENT_PATH"/sql/backfill/insert_recurse.sql
   flush
